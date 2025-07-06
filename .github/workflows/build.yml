@@ -186,7 +186,7 @@ jobs:
         path: artifacts/windows-mingw/
 
   build-meson-win32-msvc:
-    runs-on: windows-2019
+    runs-on: windows-2022
     steps:
     - uses: actions/checkout@v4
     - name: Setup Python
