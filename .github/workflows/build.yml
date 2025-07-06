@@ -23,6 +23,16 @@ jobs:
       run: ninja -C build
     - name: Install
       run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/linux-all-flavors
+        cp -r /tmp/glmark2-install/* artifacts/linux-all-flavors/
+        cp build/src/glmark2-* artifacts/linux-all-flavors/ 2>/dev/null || true
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: glmark2-linux-all-flavors
+        path: artifacts/linux-all-flavors/
 
   build-meson-only-drm:
     runs-on: ubuntu-20.04
@@ -38,6 +48,16 @@ jobs:
       run: ninja -C build
     - name: Install
       run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/linux-drm-only
+        cp -r /tmp/glmark2-install/* artifacts/linux-drm-only/
+        cp build/src/glmark2-* artifacts/linux-drm-only/ 2>/dev/null || true
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: glmark2-linux-drm-only
+        path: artifacts/linux-drm-only/
 
   build-meson-only-wayland:
     runs-on: ubuntu-20.04
@@ -53,6 +73,16 @@ jobs:
       run: ninja -C build
     - name: Install
       run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/linux-wayland-only
+        cp -r /tmp/glmark2-install/* artifacts/linux-wayland-only/
+        cp build/src/glmark2-* artifacts/linux-wayland-only/ 2>/dev/null || true
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: glmark2-linux-wayland-only
+        path: artifacts/linux-wayland-only/
 
   build-meson-only-x11:
     runs-on: ubuntu-20.04
@@ -68,6 +98,16 @@ jobs:
       run: ninja -C build
     - name: Install
       run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/linux-x11-only
+        cp -r /tmp/glmark2-install/* artifacts/linux-x11-only/
+        cp build/src/glmark2-* artifacts/linux-x11-only/ 2>/dev/null || true
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: glmark2-linux-x11-only
+        path: artifacts/linux-x11-only/
 
   build-meson-only-null:
     runs-on: ubuntu-20.04
@@ -83,6 +123,16 @@ jobs:
       run: ninja -C build
     - name: Install
       run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/linux-null-only
+        cp -r /tmp/glmark2-install/* artifacts/linux-null-only/
+        cp build/src/glmark2-* artifacts/linux-null-only/ 2>/dev/null || true
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: glmark2-linux-null-only
+        path: artifacts/linux-null-only/
 
   build-meson-only-dispmanx:
     runs-on: ubuntu-22.04-arm
@@ -98,6 +148,16 @@ jobs:
       run: ninja -C build
     - name: Install
       run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/linux-dispmanx-only
+        cp -r /tmp/glmark2-install/* artifacts/linux-dispmanx-only/
+        cp build/src/glmark2-* artifacts/linux-dispmanx-only/ 2>/dev/null || true
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: glmark2-linux-dispmanx-only
+        path: artifacts/linux-dispmanx-only/
 
   build-meson-win32-mingw:
     runs-on: ubuntu-20.04
@@ -113,6 +173,16 @@ jobs:
       run: ninja -C build
     - name: Install
       run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/windows-mingw
+        cp -r /tmp/glmark2-install/* artifacts/windows-mingw/
+        cp build/src/glmark2*.exe artifacts/windows-mingw/ 2>/dev/null || true
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: glmark2-windows-mingw
+        path: artifacts/windows-mingw/
 
   build-meson-win32-msvc:
     runs-on: windows-2019
@@ -128,3 +198,15 @@ jobs:
       run: meson setup --vsenv build -Dflavors='win32-gl,win32-glesv2'
     - name: Build
       run: meson compile -C build
+    - name: Install
+      run: meson install -C build --destdir ../glmark2-install
+    - name: Create artifact directory
+      run: |
+        mkdir artifacts\windows-msvc
+        xcopy glmark2-install\* artifacts\windows-msvc\ /E /I
+        copy build\src\glmark2*.exe artifacts\windows-msvc\ 2>nul || echo "No exe files found in build directory"
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: glmark2-windows-msvc
+        path: artifacts/windows-msvc/
