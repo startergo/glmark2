@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-meson:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
@@ -36,7 +36,7 @@ jobs:
         path: artifacts/linux-all-flavors/
 
   build-meson-only-drm:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
@@ -61,7 +61,7 @@ jobs:
         path: artifacts/linux-drm-only/
 
   build-meson-only-wayland:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
@@ -86,7 +86,7 @@ jobs:
         path: artifacts/linux-wayland-only/
 
   build-meson-only-x11:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
@@ -111,7 +111,7 @@ jobs:
         path: artifacts/linux-x11-only/
 
   build-meson-only-null:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
@@ -161,7 +161,7 @@ jobs:
         path: artifacts/linux-dispmanx-only/
 
   build-meson-win32-mingw:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
