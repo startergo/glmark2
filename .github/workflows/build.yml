@@ -211,3 +211,63 @@ jobs:
       with:
         name: glmark2-windows-msvc
         path: artifacts/windows-msvc/
+
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    needs: [build-meson, build-meson-only-drm, build-meson-only-wayland, build-meson-only-x11, build-meson-only-null, build-meson-only-dispmanx, build-meson-win32-mingw, build-meson-win32-msvc]
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: release-artifacts
+    - name: Create release archives
+      run: |
+        cd release-artifacts
+        for dir in */; do
+          if [ -d "$dir" ]; then
+            echo "Creating archive for $dir"
+            tar -czf "${dir%/}.tar.gz" -C "$dir" .
+            zip -r "${dir%/}.zip" "$dir"
+          fi
+        done
+        ls -la *.tar.gz *.zip
+    - name: Generate release tag
+      id: tag
+      run: |
+        TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
+        TAG="release-${TIMESTAMP}"
+        echo "tag=${TAG}" >> $GITHUB_OUTPUT
+        echo "Generated tag: ${TAG}"
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.tag.outputs.tag }}
+        name: "GLMark2 Release ${{ steps.tag.outputs.tag }}"
+        body: |
+          ## GLMark2 Build Artifacts
+          
+          This release contains pre-built GLMark2 binaries for multiple platforms and configurations:
+          
+          ### Linux Builds
+          - **glmark2-linux-all-flavors** - Complete build with all display backends (X11, Wayland, DRM, null)
+          - **glmark2-linux-drm-only** - DRM-only build for direct rendering
+          - **glmark2-linux-wayland-only** - Wayland-only build
+          - **glmark2-linux-x11-only** - X11-only build
+          - **glmark2-linux-null-only** - Headless/null build for benchmarking without display
+          - **glmark2-linux-dispmanx-only** - Raspberry Pi DispmanX build
+          
+          ### Windows Builds
+          - **glmark2-windows-mingw** - Windows build using MinGW cross-compilation
+          - **glmark2-windows-msvc** - Windows build using native MSVC
+          
+          Each archive contains both `.tar.gz` and `.zip` formats for convenience.
+          
+          **Build Date:** $(date +"%Y-%m-%d %H:%M:%S UTC")
+          **Commit:** ${{ github.sha }}
+        draft: false
+        prerelease: false
+        files: |
+          release-artifacts/*.tar.gz
+          release-artifacts/*.zip
