@@ -41,13 +41,55 @@ GLStateGLX::init_display(void* native_display, GLVisualConfig& visual_config)
     xdpy_ = reinterpret_cast<Display*>(native_display);
     requested_visual_config_ = visual_config;
 
+#ifdef GLMARK2_USE_APPLE_OPENGL
+    // On macOS with XQuartz, use the XQuartz libGL which has GLX support
+    if (!lib_.open_from_alternatives({"/opt/X11/lib/libGL.dylib", "/opt/X11/lib/libGL.1.dylib", "libGL.dylib", "libGL.1.dylib"})) {
+        Log::error("Failed to load libGL from XQuartz\n");
+        return false;
+    }
+    Log::debug("Successfully loaded libGL library\n");
+    
+    // Test if we can load a basic GLX function
+    void* test_func = lib_.load("glXQueryVersion");
+    if (!test_func) {
+        Log::error("Failed to load glXQueryVersion from libGL\n");
+        return false;
+    }
+    Log::debug("Successfully loaded glXQueryVersion test function\n");
+#else
     if (!lib_.open_from_alternatives({"libGL.so", "libGL.so.1"})) {
         Log::error("Failed to load libGL\n");
         return false;
     }
+#endif
 
-    gladLoadGLXUserPtr(xdpy_, DefaultScreen(xdpy_), load_proc, this);
-    return (xdpy_ != 0);
+    if (!xdpy_) {
+        Log::error("Display pointer is NULL\n");
+        return false;
+    }
+    
+    int screen = DefaultScreen(xdpy_);
+    Log::debug("Display: %p, Screen: %d\n", xdpy_, screen);
+    
+    // Try to manually load and call glXQueryVersion as a test
+    typedef Bool (*glXQueryVersionProc)(Display*, int*, int*);
+    glXQueryVersionProc queryVersion = reinterpret_cast<glXQueryVersionProc>(lib_.load("glXQueryVersion"));
+    if (queryVersion) {
+        int major, minor;
+        Bool result = queryVersion(xdpy_, &major, &minor);
+        Log::debug("Manual glXQueryVersion result: %d, version: %d.%d\n", result, major, minor);
+    } else {
+        Log::debug("Could not load glXQueryVersion manually\n");
+    }
+    
+    int glx_loaded = gladLoadGLXUserPtr(xdpy_, screen, load_proc, this);
+    Log::debug("gladLoadGLXUserPtr returned: %d\n", glx_loaded);
+    if (glx_loaded == 0) {
+        Log::error("Failed to load GLX functions\n");
+        return false;
+    }
+    
+    return true;
 }
 
 bool
@@ -374,14 +416,25 @@ GLStateGLX::select_best_config(std::vector<GLXFBConfig> configs)
 GLADapiproc
 GLStateGLX::load_proc(void *userptr, const char* name)
 {
+    GLStateGLX* state = reinterpret_cast<GLStateGLX*>(userptr);
+    
+    // First try to load from the library directly (for bootstrap and fallback)
+    GLADapiproc sym = reinterpret_cast<GLADapiproc>(state->lib_.load(name));
+    if (!sym) {
+        Log::debug("Failed to load symbol: %s\n", name);
+    }
+    if (sym) {
+        return sym;
+    }
+    
+    // If available, also try glXGetProcAddress for extension functions
     if (glXGetProcAddress) {
         const GLubyte* bytes = reinterpret_cast<const GLubyte*>(name);
-        GLADapiproc sym = glXGetProcAddress(bytes);
+        sym = glXGetProcAddress(bytes);
         if (sym) {
             return sym;
         }
     }
 
-    GLStateGLX* state = reinterpret_cast<GLStateGLX*>(userptr);
-    return reinterpret_cast<GLADapiproc>(state->lib_.load(name));
+    return nullptr;
 }

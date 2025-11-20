@@ -47,7 +47,23 @@ if need_win32 and (need_x11 or need_gbm or need_drm or need_wayland or need_disp
 endif
 
 if need_x11
-    x11_dep = dependency('x11')
+    if host_machine.system() == 'darwin'
+        # On macOS, use XQuartz's X11 and GL libraries for GLX support
+        x11_dep = declare_dependency(
+            compile_args: ['-I/opt/X11/include'],
+            link_args: ['-L/opt/X11/lib', '-lX11'],
+        )
+        # XQuartz provides libGL with GLX support
+        opengl_dep = declare_dependency(
+            link_args: ['-L/opt/X11/lib'],
+        )
+        add_global_arguments('-DGLMARK2_USE_APPLE_OPENGL', language : 'cpp')
+    else
+        x11_dep = dependency('x11')
+        opengl_dep = declare_dependency()
+    endif
+else
+    opengl_dep = declare_dependency()
 endif
 
 if need_drm
