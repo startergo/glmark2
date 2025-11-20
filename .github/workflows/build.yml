@@ -336,7 +336,29 @@ jobs:
           - **glmark2-macos-arm64** - macOS Apple Silicon (ARM64) build with XQuartz
           - **glmark2-macos-x86_64** - macOS Intel (x86_64) build with XQuartz
           
-          Each archive contains both `.tar.gz` and `.zip` formats for convenience.
+          #### macOS Installation
+          
+          **Prerequisites:** Install XQuartz first:
+          ```bash
+          brew install --cask xquartz
+          ```
+          
+          **Installation:**
+          ```bash
+          # macOS ARM64 (Apple Silicon)
+          sudo tar -xzf glmark2-macos-arm64.tar.gz -C /
+          sudo xattr -cr /opt/homebrew/bin/glmark2
+          
+          # macOS Intel (x86_64)
+          sudo tar -xzf glmark2-macos-x86_64.tar.gz -C /
+          sudo xattr -cr /usr/local/bin/glmark2
+          ```
+          
+          The `xattr -cr` command removes quarantine attributes that macOS applies to downloaded files.
+          
+          Then run with: `glmark2`
+          
+          Each Linux/Windows archive contains both `.tar.gz` and `.zip` formats for convenience.
           
           **Build Date:** $(date +"%Y-%m-%d %H:%M:%S UTC")
           **Commit:** ${{ github.sha }}
