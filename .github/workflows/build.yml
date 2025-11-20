@@ -213,7 +213,7 @@ jobs:
         path: artifacts/windows-msvc/
 
   build-meson-macos-arm64:
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
@@ -225,25 +225,25 @@ jobs:
     - name: Setup
       run: |
         export PKG_CONFIG_PATH="/opt/homebrew/opt/jpeg-turbo/lib/pkgconfig:/opt/homebrew/opt/libpng/lib/pkgconfig:$PKG_CONFIG_PATH"
-        meson setup build -Dflavors=x11-gl
+        meson setup build -Dflavors=x11-gl --prefix=/opt/homebrew
     - name: Build
       run: ninja -C build
-    - name: Install
+    - name: Install to staging directory
       run: DESTDIR=/tmp/glmark2-install ninja -C build install
-    - name: Create artifact directory
+    - name: Create artifact with proper structure
       run: |
         mkdir -p artifacts/macos-arm64
-        cp -r /tmp/glmark2-install/* artifacts/macos-arm64/
-        cp build/src/glmark2 artifacts/macos-arm64/
-        cp -r data artifacts/macos-arm64/
+        cd /tmp/glmark2-install
+        tar -czf /tmp/glmark2-macos-arm64.tar.gz .
+        mv /tmp/glmark2-macos-arm64.tar.gz artifacts/macos-arm64/
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: glmark2-macos-arm64
-        path: artifacts/macos-arm64/
+        path: artifacts/macos-arm64/glmark2-macos-arm64.tar.gz
 
   build-meson-macos-x86_64:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
@@ -255,22 +255,22 @@ jobs:
     - name: Setup
       run: |
         export PKG_CONFIG_PATH="/usr/local/opt/jpeg-turbo/lib/pkgconfig:/usr/local/opt/libpng/lib/pkgconfig:$PKG_CONFIG_PATH"
-        meson setup build -Dflavors=x11-gl
+        meson setup build -Dflavors=x11-gl --prefix=/usr/local
     - name: Build
       run: ninja -C build
-    - name: Install
+    - name: Install to staging directory
       run: DESTDIR=/tmp/glmark2-install ninja -C build install
-    - name: Create artifact directory
+    - name: Create artifact with proper structure
       run: |
         mkdir -p artifacts/macos-x86_64
-        cp -r /tmp/glmark2-install/* artifacts/macos-x86_64/
-        cp build/src/glmark2 artifacts/macos-x86_64/
-        cp -r data artifacts/macos-x86_64/
+        cd /tmp/glmark2-install
+        tar -czf /tmp/glmark2-macos-x86_64.tar.gz .
+        mv /tmp/glmark2-macos-x86_64.tar.gz artifacts/macos-x86_64/
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: glmark2-macos-x86_64
-        path: artifacts/macos-x86_64/
+        path: artifacts/macos-x86_64/glmark2-macos-x86_64.tar.gz
 
   release:
     if: github.event_name == 'workflow_dispatch'
@@ -285,14 +285,24 @@ jobs:
     - name: Create release archives
       run: |
         cd release-artifacts
+        # macOS archives are already tarballs, just copy them
+        find . -name "*.tar.gz" -exec mv {} . \;
+        # Create archives for other platforms
         for dir in */; do
           if [ -d "$dir" ]; then
-            echo "Creating archive for $dir"
-            tar -czf "${dir%/}.tar.gz" -C "$dir" .
-            zip -r "${dir%/}.zip" "$dir"
+            case "$dir" in
+              glmark2-macos-*)
+                echo "Skipping $dir - already archived"
+                ;;
+              *)
+                echo "Creating archive for $dir"
+                tar -czf "${dir%/}.tar.gz" -C "$dir" .
+                zip -r "${dir%/}.zip" "$dir"
+                ;;
+            esac
           fi
         done
-        ls -la *.tar.gz *.zip
+        ls -la *.tar.gz *.zip 2>/dev/null || true
     - name: Generate release tag
       id: tag
       run: |
