@@ -212,9 +212,69 @@ jobs:
         name: glmark2-windows-msvc
         path: artifacts/windows-msvc/
 
+  build-meson-macos-arm64:
+    runs-on: macos-14
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: |
+        brew install meson ninja pkg-config jpeg-turbo libpng
+    - name: Install XQuartz
+      run: |
+        brew install --cask xquartz
+    - name: Setup
+      run: |
+        export PKG_CONFIG_PATH="/opt/homebrew/opt/jpeg-turbo/lib/pkgconfig:/opt/homebrew/opt/libpng/lib/pkgconfig:$PKG_CONFIG_PATH"
+        meson setup build -Dflavors=x11-gl
+    - name: Build
+      run: ninja -C build
+    - name: Install
+      run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/macos-arm64
+        cp -r /tmp/glmark2-install/* artifacts/macos-arm64/
+        cp build/src/glmark2 artifacts/macos-arm64/
+        cp -r data artifacts/macos-arm64/
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: glmark2-macos-arm64
+        path: artifacts/macos-arm64/
+
+  build-meson-macos-x86_64:
+    runs-on: macos-13
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: |
+        brew install meson ninja pkg-config jpeg-turbo libpng
+    - name: Install XQuartz
+      run: |
+        brew install --cask xquartz
+    - name: Setup
+      run: |
+        export PKG_CONFIG_PATH="/usr/local/opt/jpeg-turbo/lib/pkgconfig:/usr/local/opt/libpng/lib/pkgconfig:$PKG_CONFIG_PATH"
+        meson setup build -Dflavors=x11-gl
+    - name: Build
+      run: ninja -C build
+    - name: Install
+      run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/macos-x86_64
+        cp -r /tmp/glmark2-install/* artifacts/macos-x86_64/
+        cp build/src/glmark2 artifacts/macos-x86_64/
+        cp -r data artifacts/macos-x86_64/
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: glmark2-macos-x86_64
+        path: artifacts/macos-x86_64/
+
   release:
     if: github.event_name == 'workflow_dispatch'
-    needs: [build-meson, build-meson-only-drm, build-meson-only-wayland, build-meson-only-x11, build-meson-only-null, build-meson-only-dispmanx, build-meson-win32-mingw, build-meson-win32-msvc]
+    needs: [build-meson, build-meson-only-drm, build-meson-only-wayland, build-meson-only-x11, build-meson-only-null, build-meson-only-dispmanx, build-meson-win32-mingw, build-meson-win32-msvc, build-meson-macos-arm64, build-meson-macos-x86_64]
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
@@ -261,6 +321,10 @@ jobs:
           ### Windows Builds
           - **glmark2-windows-mingw** - Windows build using MinGW cross-compilation
           - **glmark2-windows-msvc** - Windows build using native MSVC
+          
+          ### macOS Builds
+          - **glmark2-macos-arm64** - macOS Apple Silicon (ARM64) build with XQuartz
+          - **glmark2-macos-x86_64** - macOS Intel (x86_64) build with XQuartz
           
           Each archive contains both `.tar.gz` and `.zip` formats for convenience.
           
