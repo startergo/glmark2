@@ -228,8 +228,24 @@ jobs:
         meson setup build -Dflavors=x11-gl --prefix=/opt/homebrew
     - name: Build
       run: ninja -C build
+    - name: Fix library paths for portability
+      run: |
+        # Copy required dynamic libraries to a local lib directory
+        mkdir -p /tmp/glmark2-install-libs
+        cp /opt/homebrew/opt/jpeg-turbo/lib/libjpeg.8.dylib /tmp/glmark2-install-libs/
+        cp /opt/homebrew/opt/libpng/lib/libpng16.16.dylib /tmp/glmark2-install-libs/
+        # Fix library paths in binary to use @executable_path
+        install_name_tool -change /opt/homebrew/opt/jpeg-turbo/lib/libjpeg.8.dylib @executable_path/../lib/libjpeg.8.dylib build/src/glmark2
+        install_name_tool -change /opt/homebrew/opt/libpng/lib/libpng16.16.dylib @executable_path/../lib/libpng16.16.dylib build/src/glmark2
+        # Fix library IDs and inter-dependencies
+        install_name_tool -id @executable_path/../lib/libjpeg.8.dylib /tmp/glmark2-install-libs/libjpeg.8.dylib
+        install_name_tool -id @executable_path/../lib/libpng16.16.dylib /tmp/glmark2-install-libs/libpng16.16.dylib
     - name: Install to staging directory
-      run: DESTDIR=/tmp/glmark2-install ninja -C build install
+      run: |
+        DESTDIR=/tmp/glmark2-install ninja -C build install
+        # Add bundled libraries
+        mkdir -p /tmp/glmark2-install/opt/homebrew/lib
+        cp /tmp/glmark2-install-libs/*.dylib /tmp/glmark2-install/opt/homebrew/lib/
     - name: Create artifact with proper structure
       run: |
         cd /tmp/glmark2-install
@@ -258,8 +274,24 @@ jobs:
         meson setup build -Dflavors=x11-gl --prefix=/usr/local
     - name: Build
       run: ninja -C build
+    - name: Fix library paths for portability
+      run: |
+        # Copy required dynamic libraries to a local lib directory
+        mkdir -p /tmp/glmark2-install-libs
+        cp /usr/local/opt/jpeg-turbo/lib/libjpeg.8.dylib /tmp/glmark2-install-libs/
+        cp /usr/local/opt/libpng/lib/libpng16.16.dylib /tmp/glmark2-install-libs/
+        # Fix library paths in binary to use @executable_path
+        install_name_tool -change /usr/local/opt/jpeg-turbo/lib/libjpeg.8.dylib @executable_path/../lib/libjpeg.8.dylib build/src/glmark2
+        install_name_tool -change /usr/local/opt/libpng/lib/libpng16.16.dylib @executable_path/../lib/libpng16.16.dylib build/src/glmark2
+        # Fix library IDs and inter-dependencies
+        install_name_tool -id @executable_path/../lib/libjpeg.8.dylib /tmp/glmark2-install-libs/libjpeg.8.dylib
+        install_name_tool -id @executable_path/../lib/libpng16.16.dylib /tmp/glmark2-install-libs/libpng16.16.dylib
     - name: Install to staging directory
-      run: DESTDIR=/tmp/glmark2-install ninja -C build install
+      run: |
+        DESTDIR=/tmp/glmark2-install ninja -C build install
+        # Add bundled libraries
+        mkdir -p /tmp/glmark2-install/usr/local/lib
+        cp /tmp/glmark2-install-libs/*.dylib /tmp/glmark2-install/usr/local/lib/
     - name: Create artifact with proper structure
       run: |
         cd /tmp/glmark2-install
