@@ -225,6 +225,10 @@ jobs:
     - name: Setup
       run: |
         export PKG_CONFIG_PATH="/opt/homebrew/opt/jpeg-turbo/lib/pkgconfig:/opt/homebrew/opt/libpng/lib/pkgconfig:$PKG_CONFIG_PATH"
+        export MACOSX_DEPLOYMENT_TARGET=11.0
+        export CFLAGS="-mmacosx-version-min=11.0"
+        export CXXFLAGS="-mmacosx-version-min=11.0"
+        export LDFLAGS="-mmacosx-version-min=11.0"
         meson setup build -Dflavors=x11-gl --prefix=/opt/homebrew
     - name: Build
       run: ninja -C build
@@ -271,6 +275,10 @@ jobs:
     - name: Setup
       run: |
         export PKG_CONFIG_PATH="/usr/local/opt/jpeg-turbo/lib/pkgconfig:/usr/local/opt/libpng/lib/pkgconfig:$PKG_CONFIG_PATH"
+        export MACOSX_DEPLOYMENT_TARGET=10.13
+        export CFLAGS="-mmacosx-version-min=10.13"
+        export CXXFLAGS="-mmacosx-version-min=10.13"
+        export LDFLAGS="-mmacosx-version-min=10.13"
         meson setup build -Dflavors=x11-gl --prefix=/usr/local
     - name: Build
       run: ninja -C build
