@@ -233,9 +233,9 @@ jobs:
     - name: Create artifact with proper structure
       run: |
         cd /tmp/glmark2-install
-        tar -czf /tmp/glmark2-macos-arm64.tar.gz .
-        mkdir -p artifacts/macos-arm64
-        mv /tmp/glmark2-macos-arm64.tar.gz artifacts/macos-arm64/
+        tar -czf glmark2-macos-arm64.tar.gz .
+        mkdir -p $GITHUB_WORKSPACE/artifacts/macos-arm64
+        mv glmark2-macos-arm64.tar.gz $GITHUB_WORKSPACE/artifacts/macos-arm64/
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -263,9 +263,9 @@ jobs:
     - name: Create artifact with proper structure
       run: |
         cd /tmp/glmark2-install
-        tar -czf /tmp/glmark2-macos-x86_64.tar.gz .
-        mkdir -p artifacts/macos-x86_64
-        mv /tmp/glmark2-macos-x86_64.tar.gz artifacts/macos-x86_64/
+        tar -czf glmark2-macos-x86_64.tar.gz .
+        mkdir -p $GITHUB_WORKSPACE/artifacts/macos-x86_64
+        mv glmark2-macos-x86_64.tar.gz $GITHUB_WORKSPACE/artifacts/macos-x86_64/
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -347,11 +347,11 @@ jobs:
           ```bash
           # macOS ARM64 (Apple Silicon)
           sudo tar -xzf glmark2-macos-arm64.tar.gz -C /
-          sudo xattr -cr /opt/homebrew/bin/glmark2
+          sudo /usr/bin/xattr -cr /opt/homebrew/bin/glmark2
           
           # macOS Intel (x86_64)
           sudo tar -xzf glmark2-macos-x86_64.tar.gz -C /
-          sudo xattr -cr /usr/local/bin/glmark2
+          sudo /usr/bin/xattr -cr /usr/local/bin/glmark2
           ```
           
           The `xattr -cr` command removes quarantine attributes that macOS applies to downloaded files.
