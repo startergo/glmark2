@@ -21,7 +21,7 @@ void main(void)
     // Convert the normal to eye coordinates. Note that the normal map
     // we are using is using object coordinates (not tangent!) for the
     // normals, so we can multiply by the NormalMatrix as usual.
-    vec3 N = normalize(NormalMatrix * normal_scaled);
+    vec3 N = normalize(mat3(NormalMatrix) * normal_scaled);
 
     // In the lighting model we are using here (Blinn-Phong with light at
     // infinity, viewer at infinity), the light position/direction and the

@@ -19,9 +19,9 @@ void main(void)
     // all of them perpendicular to the Normal. That is why we use
     // NormalMatrix, instead of ModelView, to transform the tangent and
     // bitangent.
-    NormalEye = normalize(NormalMatrix * normal);
-    TangentEye = normalize(NormalMatrix * tangent);
-    BitangentEye = normalize(NormalMatrix * cross(normal, tangent));
+    NormalEye = normalize(mat3(NormalMatrix) * normal);
+    TangentEye = normalize(mat3(NormalMatrix) * tangent);
+    BitangentEye = normalize(mat3(NormalMatrix) * cross(normal, tangent));
 
     // Transform the position to clip coordinates
     gl_Position = ModelViewProjectionMatrix * vec4(position, 1.0);

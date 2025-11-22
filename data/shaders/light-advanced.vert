@@ -9,7 +9,7 @@ varying vec3 Normal;
 void main(void)
 {
     // Transform the normal to eye coordinates
-    Normal = normalize(NormalMatrix * normal);
+    Normal = normalize(mat3(NormalMatrix) * normal);
 
     // Transform the position to clip coordinates
     gl_Position = ModelViewProjectionMatrix * vec4(position, 1.0);
