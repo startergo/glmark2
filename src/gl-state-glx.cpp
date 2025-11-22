@@ -420,12 +420,10 @@ GLStateGLX::load_proc(void *userptr, const char* name)
     
     // First try to load from the library directly (for bootstrap and fallback)
     GLADapiproc sym = reinterpret_cast<GLADapiproc>(state->lib_.load(name));
-    if (!sym) {
-        Log::debug("Failed to load symbol: %s\n", name);
-    }
     if (sym) {
         return sym;
     }
+    Log::debug("Symbol %s not in library, trying glXGetProcAddress\n", name);
     
     // If available, also try glXGetProcAddress for extension functions
     if (glXGetProcAddress) {

@@ -44,9 +44,12 @@ bool SharedLibrary::open(const char *libName)
 #if defined(WIN32)
     handle_ = LoadLibraryA(libName);
 #else
-    // On macOS with nullptr, use dlopen(NULL, ...) to search the global symbol table
-    // NULL opens the main program and all loaded libraries
+    // On macOS, RTLD_GLOBAL may be needed for symbol resolution
+#ifdef __APPLE__
     handle_ = dlopen(libName, RTLD_NOW | RTLD_NODELETE | RTLD_GLOBAL);
+#else
+    handle_ = dlopen(libName, RTLD_NOW | RTLD_NODELETE);
+#endif
 #endif
     return (handle_ != nullptr);
 }
