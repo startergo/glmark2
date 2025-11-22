@@ -418,21 +418,15 @@ GLStateGLX::load_proc(void *userptr, const char* name)
 {
     GLStateGLX* state = reinterpret_cast<GLStateGLX*>(userptr);
     
-    // First try to load from the library directly (for bootstrap and fallback)
-    GLADapiproc sym = reinterpret_cast<GLADapiproc>(state->lib_.load(name));
-    if (sym) {
-        return sym;
-    }
-    Log::debug("Symbol %s not in library, trying glXGetProcAddress\n", name);
-    
-    // If available, also try glXGetProcAddress for extension functions
+    // Try glXGetProcAddress first for extension functions (standard GLX pattern)
     if (glXGetProcAddress) {
         const GLubyte* bytes = reinterpret_cast<const GLubyte*>(name);
-        sym = glXGetProcAddress(bytes);
+        GLADapiproc sym = glXGetProcAddress(bytes);
         if (sym) {
             return sym;
         }
     }
-
-    return nullptr;
+    
+    // Fall back to direct library loading for bootstrap and core functions
+    return reinterpret_cast<GLADapiproc>(state->lib_.load(name));
 }
