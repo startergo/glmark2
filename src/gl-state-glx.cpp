@@ -47,15 +47,6 @@ GLStateGLX::init_display(void* native_display, GLVisualConfig& visual_config)
         Log::error("Failed to load libGL from XQuartz\n");
         return false;
     }
-    Log::debug("Successfully loaded libGL library\n");
-    
-    // Test if we can load a basic GLX function
-    void* test_func = lib_.load("glXQueryVersion");
-    if (!test_func) {
-        Log::error("Failed to load glXQueryVersion from libGL\n");
-        return false;
-    }
-    Log::debug("Successfully loaded glXQueryVersion test function\n");
 #else
     if (!lib_.open_from_alternatives({"libGL.so", "libGL.so.1"})) {
         Log::error("Failed to load libGL\n");
@@ -69,21 +60,8 @@ GLStateGLX::init_display(void* native_display, GLVisualConfig& visual_config)
     }
     
     int screen = DefaultScreen(xdpy_);
-    Log::debug("Display: %p, Screen: %d\n", xdpy_, screen);
-    
-    // Try to manually load and call glXQueryVersion as a test
-    typedef Bool (*glXQueryVersionProc)(Display*, int*, int*);
-    glXQueryVersionProc queryVersion = reinterpret_cast<glXQueryVersionProc>(lib_.load("glXQueryVersion"));
-    if (queryVersion) {
-        int major, minor;
-        Bool result = queryVersion(xdpy_, &major, &minor);
-        Log::debug("Manual glXQueryVersion result: %d, version: %d.%d\n", result, major, minor);
-    } else {
-        Log::debug("Could not load glXQueryVersion manually\n");
-    }
     
     int glx_loaded = gladLoadGLXUserPtr(xdpy_, screen, load_proc, this);
-    Log::debug("gladLoadGLXUserPtr returned: %d\n", glx_loaded);
     if (glx_loaded == 0) {
         Log::error("Failed to load GLX functions\n");
         return false;
@@ -418,21 +396,15 @@ GLStateGLX::load_proc(void *userptr, const char* name)
 {
     GLStateGLX* state = reinterpret_cast<GLStateGLX*>(userptr);
     
-    // First try to load from the library directly (for bootstrap and fallback)
-    GLADapiproc sym = reinterpret_cast<GLADapiproc>(state->lib_.load(name));
-    if (sym) {
-        return sym;
-    }
-    Log::debug("Symbol %s not in library, trying glXGetProcAddress\n", name);
-    
-    // If available, also try glXGetProcAddress for extension functions
+    // Try glXGetProcAddress first for extension functions (standard GLX pattern)
     if (glXGetProcAddress) {
         const GLubyte* bytes = reinterpret_cast<const GLubyte*>(name);
-        sym = glXGetProcAddress(bytes);
+        GLADapiproc sym = glXGetProcAddress(bytes);
         if (sym) {
             return sym;
         }
     }
-
-    return nullptr;
+    
+    // Fall back to direct library loading for bootstrap and core functions
+    return reinterpret_cast<GLADapiproc>(state->lib_.load(name));
 }
