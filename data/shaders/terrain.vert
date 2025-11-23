@@ -26,10 +26,10 @@ void main()
 {
     vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
     vViewPosition = -mvPosition.xyz;
-    vNormal = normalize(mat3(normalMatrix) * normal);
+    vNormal = normalize(vec3(normalMatrix * vec4(normal, 0.0)));
 
     // tangent and binormal vectors
-    vTangent = normalize(mat3(normalMatrix) * tangent);
+    vTangent = normalize(vec3(normalMatrix * vec4(tangent, 0.0)));
     vBinormal = cross( vNormal, vTangent );
     vBinormal = normalize( vBinormal );
 
@@ -43,5 +43,5 @@ void main()
     gl_Position = projectionMatrix * displacedPosition;
 
     vec3 normalTex = texture2D(tNormal, uv).xyz * 2.0 - 1.0;
-    vNormal = mat3(normalMatrix) * normalTex;
+    vNormal = vec3(normalMatrix * vec4(normalTex, 0.0));
 }

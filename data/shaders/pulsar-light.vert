@@ -12,7 +12,7 @@ varying vec2 TextureCoord;
 void main(void)
 {
     // Transform the normal to eye coordinates
-    vec3 N = normalize(mat3(NormalMatrix) * normal);
+    vec3 N = normalize(vec3(NormalMatrix * vec4(normal, 0.0)));
 
     // The LightSourcePosition is actually its direction for directional light
     vec3 L = normalize(LightSourcePosition.xyz);
