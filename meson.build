@@ -6,20 +6,31 @@ project(
     meson_version: '>=0.47'
     )
 
+
+
 cpp = meson.get_compiler('cpp')
 
 full_version = meson.project_version() + get_option('version-suffix')
 add_global_arguments('-DGLMARK_VERSION="@0@"'.format(full_version), language : 'cpp')
+if host_machine.system() == 'darwin'
+    add_global_arguments('-DGLMARK_VERSION="@0@"'.format(full_version), language : 'objcpp')
+endif
 
 data_path = get_option('data-path')
 if data_path == ''
     data_path = join_paths([get_option('prefix'), get_option('datadir'), 'glmark2'])
 endif
 add_global_arguments('-DGLMARK_DATA_PATH=R"(@0@)"'.format(data_path), language : 'cpp')
+if host_machine.system() == 'darwin'
+    add_global_arguments('-DGLMARK_DATA_PATH=R"(@0@)"'.format(data_path), language : 'objcpp')
+endif
 
 extras_path = get_option('extras-path')
 if extras_path != ''
     add_global_arguments('-DGLMARK_EXTRAS_PATH=R"(@0@)"'.format(extras_path), language : 'cpp')
+    if host_machine.system() == 'darwin'
+        add_global_arguments('-DGLMARK_EXTRAS_PATH=R"(@0@)"'.format(extras_path), language : 'objcpp')
+    endif
 endif
 
 flavors = get_option('flavors')
@@ -34,6 +45,7 @@ need_drm = flavors_str.contains('drm-')
 need_gbm = flavors_str.contains('gbm-')
 need_wayland = flavors_str.contains('wayland-')
 need_null = flavors_str.contains('null-')
+need_macos = flavors_str.contains('macos-')
 need_gl = flavors_str.contains('-gl')
 need_glesv2 = flavors_str.contains('-glesv2')
 need_egl = need_drm or need_wayland or need_glesv2 or need_null or flavors_str.contains('-egl')
@@ -41,6 +53,17 @@ need_glx = flavors.contains('x11-gl')
 need_win32 = flavors_str.contains('win32-')
 need_wgl = 'win32-gl' in flavors
 need_dispmanx = flavors_str.contains('dispmanx-')
+
+if need_macos and host_machine.system() != 'darwin'
+    error('macos-* flavors are only supported on macOS')
+endif
+
+if need_macos
+    add_languages('objcpp', required: true)
+    apple_frameworks_dep = dependency('appleframeworks', modules: ['Cocoa', 'OpenGL'])
+else
+    apple_frameworks_dep = declare_dependency()
+endif
 
 if need_win32 and (need_x11 or need_gbm or need_drm or need_wayland or need_dispmanx)
     error('Simultaneous Windows and non-Windows builds are not supported')

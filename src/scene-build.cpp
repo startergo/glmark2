@@ -153,6 +153,8 @@ SceneBuild::setup()
     mesh_.set_attrib_locations(attrib_locations);
 
     useVbo_ = (options_["use-vbo"].value == "true");
+    if (!useVbo_ && GLExtensions::is_core_profile())
+        useVbo_ = true;
     bool interleave = (options_["interleave"].value == "true");
 
     mesh_.vbo_update_method(Mesh::VBOUpdateMethodMap);

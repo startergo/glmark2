@@ -50,6 +50,7 @@ Options::Results Options::results = Options::ResultsFps;
 std::string Options::results_file;
 std::vector<Options::WindowSystemOption> Options::winsys_options;
 std::string Options::winsys_options_help;
+Options::MacOSGLProfile Options::macos_gl_profile = Options::MacOSGLProfileCore;
 
 static struct option long_options[] = {
     {"annotate", 0, 0, 0},
@@ -69,6 +70,7 @@ static struct option long_options[] = {
     {"results", 1, 0, 0},
     {"results-file", 1, 0, 0},
     {"winsys-options", 1, 0, 0},
+    {"macos-gl-profile", 1, 0, 0},
     {"list-scenes", 0, 0, 0},
     {"show-all-options", 0, 0, 0},
     {"debug", 0, 0, 0},
@@ -76,6 +78,16 @@ static struct option long_options[] = {
     {"help", 0, 0, 0},
     {0, 0, 0, 0}
 };
+
+static Options::MacOSGLProfile
+macos_gl_profile_from_str(const std::string& str)
+{
+    if (str == "core")
+        return Options::MacOSGLProfileCore;
+    if (str == "legacy")
+        return Options::MacOSGLProfileLegacy;
+    throw std::runtime_error{"Invalid macos gl profile '" + str + "'"};
+}
 
 /**
  * Parses a size string of the form WxH
@@ -252,6 +264,8 @@ Options::print_help()
            "                         by the file extension [csv,xml]\n"
            "      --winsys-options O A list of 'opt=value' pairs for window system specific\n"
            "                         options, separated by ':'\n"
+           "      --macos-gl-profile P OpenGL profile to request in the macos-gl flavor\n"
+           "                         [core,legacy] (default: core)\n"
            "  -l, --list-scenes      Display information about the available scenes\n"
            "                         and their options\n"
            "      --show-all-options Show all scene option values used for benchmarks\n"
@@ -321,6 +335,16 @@ Options::parse_args(int argc, char **argv)
             Options::results_file = optarg;
         else if (!strcmp(optname, "winsys-options"))
             Options::winsys_options = winsys_options_from_str(optarg);
+        else if (!strcmp(optname, "macos-gl-profile"))
+        {
+            try {
+                Options::macos_gl_profile = macos_gl_profile_from_str(optarg);
+            }
+            catch (const std::exception& e) {
+                fprintf(stderr, "%s\n", e.what());
+                return false;
+            }
+        }
         else if (c == 'l' || !strcmp(optname, "list-scenes"))
             Options::list_scenes = true;
         else if (!strcmp(optname, "show-all-options"))

@@ -14,8 +14,106 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
+
+#include <cctype>
+
 #include "gl-if.h"
 #include "program.h"
+
+namespace
+{
+
+bool is_ident_char(char c)
+{
+    return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+}
+
+void replace_word(std::string& s, const std::string& from, const std::string& to)
+{
+    if (from.empty() || s.empty())
+        return;
+
+    size_t pos = 0;
+    while ((pos = s.find(from, pos)) != std::string::npos) {
+        const bool ok_before = (pos == 0) || !is_ident_char(s[pos - 1]);
+        const size_t after = pos + from.size();
+        const bool ok_after = (after >= s.size()) || !is_ident_char(s[after]);
+
+        if (ok_before && ok_after) {
+            s.replace(pos, from.size(), to);
+            pos += to.size();
+        } else {
+            pos += from.size();
+        }
+    }
+}
+
+bool has_version_directive(const std::string& s)
+{
+    size_t i = 0;
+    while (i < s.size() && std::isspace(static_cast<unsigned char>(s[i])))
+        ++i;
+    return (i + 8 <= s.size() && s.compare(i, 8, "#version") == 0);
+}
+
+bool is_core_profile_context()
+{
+#ifdef GL_CONTEXT_PROFILE_MASK
+    GLint mask = 0;
+    glGetIntegerv(GL_CONTEXT_PROFILE_MASK, &mask);
+    if (glGetError() == GL_NO_ERROR) {
+#ifdef GL_CONTEXT_CORE_PROFILE_BIT
+        return (mask & GL_CONTEXT_CORE_PROFILE_BIT) != 0;
+#else
+        return (mask & 0x00000001) != 0;
+#endif
+    }
+#endif
+
+    // In core profile, GL_EXTENSIONS is not queryable via glGetString.
+    const char* exts = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+    if (!exts)
+        return true;
+
+    return false;
+}
+
+std::string make_core_compat_glsl(unsigned int type, const std::string& src)
+{
+    std::string s = src;
+
+    // Ensure a GLSL version directive; core profile requires it.
+    if (!has_version_directive(s)) {
+        s = std::string("#version 330\n") + s;
+    }
+
+    // Common modernizations.
+    replace_word(s, "texture2D", "texture");
+    replace_word(s, "textureCube", "texture");
+
+    if (type == GL_VERTEX_SHADER) {
+        replace_word(s, "attribute", "in");
+        replace_word(s, "varying", "out");
+    } else if (type == GL_FRAGMENT_SHADER) {
+        replace_word(s, "varying", "in");
+
+        // Map deprecated fragment output.
+        const std::string out_name = "glmark2_FragColor";
+        if (s.find("gl_FragColor") != std::string::npos) {
+            replace_word(s, "gl_FragColor", out_name);
+
+            // Insert output declaration after the #version line.
+            const size_t nl = s.find('\n');
+            if (nl != std::string::npos) {
+                s.insert(nl + 1, "layout(location = 0) out vec4 " + out_name + ";\n");
+            }
+        }
+    }
+
+    return s;
+}
+
+}
 
 using std::string;
 using LibMatrix::mat4;
@@ -172,7 +270,11 @@ Program::addShader(unsigned int type, const string& source)
         return;
     }
 
-    Shader shader(type, source);
+    string shader_source(source);
+    if (is_core_profile_context())
+        shader_source = make_core_compat_glsl(type, shader_source);
+
+    Shader shader(type, shader_source);
     if (!shader.valid())
     {
         message_ = shader.errorMessage();

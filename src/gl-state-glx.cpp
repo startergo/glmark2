@@ -26,6 +26,11 @@
 
 #include <climits>
 
+namespace {
+bool warned_no_swap_control = false;
+bool warned_failed_set_swap_interval = false;
+}
+
 /******************
  * Public methods *
  ******************/
@@ -152,6 +157,13 @@ GLStateGLX::valid()
 
     unsigned int desired_swap(Options::swap_mode == Options::SwapModeFIFO ? 1 : 0);
     unsigned int actual_swap(-1);
+
+    // If swap-control extensions are not available (common on XQuartz),
+    // avoid spamming per-scene warnings; we already report capability
+    // once in init_extensions().
+    if (!glXSwapIntervalEXT && !glXSwapIntervalMESA)
+        return true;
+
     if (glXSwapIntervalEXT) {
         glXSwapIntervalEXT(xdpy_, xwin_, desired_swap);
         glXQueryDrawable(xdpy_, xwin_, GLX_SWAP_INTERVAL_EXT, &actual_swap);
@@ -166,7 +178,10 @@ GLStateGLX::valid()
             return true;
     }
 
-    Log::info("** Failed to set swap interval. Results may be bounded above by refresh rate.\n");
+    if (!warned_failed_set_swap_interval) {
+        Log::info("** Failed to set swap interval. Results may be bounded above by refresh rate.\n");
+        warned_failed_set_swap_interval = true;
+    }
 
     return true;
 }
@@ -268,7 +283,10 @@ GLStateGLX::init_extensions()
      * value (i.e. you can't turn off VSync).
      */
     if (!glXSwapIntervalEXT && !glXSwapIntervalMESA) {
-        Log::info("** GLX does not support GLX_EXT_swap_control or GLX_MESA_swap_control!\n");
+        if (!warned_no_swap_control) {
+            Log::debug("** GLX does not support GLX_EXT_swap_control or GLX_MESA_swap_control!\n");
+            warned_no_swap_control = true;
+        }
     }
 }
 

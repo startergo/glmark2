@@ -56,6 +56,11 @@ struct Options {
         ResultsShader = 4,
     };
 
+    enum MacOSGLProfile {
+        MacOSGLProfileCore,
+        MacOSGLProfileLegacy,
+    };
+
     static bool parse_args(int argc, char **argv);
     static void print_help();
 
@@ -81,6 +86,9 @@ struct Options {
     static std::string results_file;
     static std::vector<WindowSystemOption> winsys_options;
     static std::string winsys_options_help;
+
+    // macOS-only: controls which NSOpenGL profile to request.
+    static MacOSGLProfile macos_gl_profile;
 };
 
 #endif /* OPTIONS_H_ */

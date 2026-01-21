@@ -37,6 +37,8 @@
 
 #if GLMARK2_USE_X11
 #include "native-state-x11.h"
+#elif GLMARK2_USE_MACOS
+#include "native-state-macos.h"
 #elif GLMARK2_USE_DRM
 #include "native-state-drm.h"
 #elif GLMARK2_USE_GBM
@@ -53,6 +55,8 @@
 
 #if GLMARK2_USE_EGL
 #include "gl-state-egl.h"
+#elif GLMARK2_USE_MACOS
+#include "gl-state-macos.h"
 #elif GLMARK2_USE_GLX
 #include "gl-state-glx.h"
 #elif GLMARK2_USE_WGL
@@ -162,6 +166,8 @@ main(int argc, char *argv[])
 {
 #if GLMARK2_USE_X11
     NativeStateX11 native_state;
+#elif GLMARK2_USE_MACOS
+    NativeStateMacOS native_state;
 #elif GLMARK2_USE_DRM
     NativeStateDRM native_state;
 #elif GLMARK2_USE_GBM
@@ -217,6 +223,8 @@ main(int argc, char *argv[])
     // Create the canvas
 #if GLMARK2_USE_EGL
     GLStateEGL gl_state;
+#elif GLMARK2_USE_MACOS
+    GLStateMacOS gl_state;
 #elif GLMARK2_USE_GLX
     GLStateGLX gl_state;
 #elif GLMARK2_USE_WGL
