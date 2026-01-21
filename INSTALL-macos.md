@@ -22,6 +22,95 @@ brew install meson ninja pkg-config libpng jpeg
 Notes:
 - This repo vendors several libraries under `src/` (glad, libpng, zlib, etc.), but the macOS build commonly links to system/brew libraries for image loading.
 
+## Install from prebuilt archives (GitHub Releases / CI artifacts)
+
+If you don’t want to build from source, you can install a prebuilt tarball produced by this repo’s CI.
+
+### Keep the archive from auto-extracting
+
+Some browsers (notably Safari) can automatically “open” downloaded archives.
+
+- Safari: disable **Safari → Settings… → General → “Open ‘safe’ files after downloading”**.
+- If your browser still auto-extracts, prefer downloading via the command line (examples below).
+
+### 1) Download the right archive
+
+First, determine your macOS architecture:
+
+```sh
+uname -m
+```
+
+- `arm64` → Apple Silicon (M1/M2/M3/M4)
+- `x86_64` → Intel
+
+Then download either:
+
+- A published **GitHub Release** asset, or
+- A workflow-run **Actions artifact** (downloaded from the run page)
+
+You should end up with a file like one of these:
+
+- Native Cocoa backend (no XQuartz):
+  - `glmark2-macos-native-arm64.tar.gz`
+  - `glmark2-macos-native-x86_64.tar.gz`
+- XQuartz/GLX backend:
+  - `glmark2-macos-arm64.tar.gz`
+  - `glmark2-macos-x86_64.tar.gz`
+
+#### Download via CLI (recommended)
+
+Using `curl` will keep the archive intact:
+
+```sh
+curl -L -o glmark2.tar.gz "https://.../glmark2-macos-native-arm64.tar.gz"
+```
+
+If you have the GitHub CLI installed, you can also download from a release without using the browser:
+
+```sh
+gh release download --repo <OWNER>/<REPO> --pattern "glmark2-macos-native-*.tar.gz"
+```
+
+### 2) Install the archive (system-wide)
+
+These archives are structured to be extracted at the filesystem root:
+
+```sh
+sudo tar -xzf /path/to/the-archive.tar.gz -C /
+```
+
+### 3) Remove Gatekeeper quarantine
+
+macOS often marks downloaded binaries as quarantined. Remove that attribute from the installed binary:
+
+```sh
+# Native Cocoa backend
+sudo /usr/bin/xattr -cr /opt/homebrew/bin/glmark2-macos 2>/dev/null || true
+sudo /usr/bin/xattr -cr /usr/local/bin/glmark2-macos 2>/dev/null || true
+
+# XQuartz/GLX backend
+sudo /usr/bin/xattr -cr /opt/homebrew/bin/glmark2 2>/dev/null || true
+sudo /usr/bin/xattr -cr /usr/local/bin/glmark2 2>/dev/null || true
+```
+
+### 4) Run
+
+- Native Cocoa backend:
+
+```sh
+glmark2-macos --debug
+```
+
+- XQuartz/GLX backend (requires XQuartz + DISPLAY):
+
+```sh
+export DISPLAY=:0
+glmark2 --debug
+```
+
+Note: Homebrew does not currently ship a `glmark2` formula, so Releases/CI artifacts (or building from source) are the intended installation paths.
+
 ## Build: native macOS backend (Cocoa + NSOpenGL)
 
 This produces `glmark2-macos`.
@@ -121,7 +210,7 @@ ninja -C build-x11
 ninja -C build-x11 install
 ```
 
-If you already have a Homebrew-installed `glmark2` (GLX/XQuartz-based), you can run it directly instead of building.
+If you want a prebuilt binary instead of building from source, see **Install from prebuilt archives** above.
 
 ### Run
 
