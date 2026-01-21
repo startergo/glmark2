@@ -54,10 +54,9 @@ jobs:
 
       - name: Create artifact
         run: |
-          cd /tmp/glmark2-install
-          tar -czf glmark2-macos-native-arm64.tar.gz .
+          tar -czf "$RUNNER_TEMP/glmark2-macos-native-arm64.tar.gz" -C /tmp/glmark2-install .
           mkdir -p "$GITHUB_WORKSPACE/artifacts/macos-native-arm64"
-          mv glmark2-macos-native-arm64.tar.gz "$GITHUB_WORKSPACE/artifacts/macos-native-arm64/"
+          mv "$RUNNER_TEMP/glmark2-macos-native-arm64.tar.gz" "$GITHUB_WORKSPACE/artifacts/macos-native-arm64/"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -109,10 +108,9 @@ jobs:
 
       - name: Create artifact
         run: |
-          cd /tmp/glmark2-install
-          tar -czf glmark2-macos-native-x86_64.tar.gz .
+          tar -czf "$RUNNER_TEMP/glmark2-macos-native-x86_64.tar.gz" -C /tmp/glmark2-install .
           mkdir -p "$GITHUB_WORKSPACE/artifacts/macos-native-x86_64"
-          mv glmark2-macos-native-x86_64.tar.gz "$GITHUB_WORKSPACE/artifacts/macos-native-x86_64/"
+          mv "$RUNNER_TEMP/glmark2-macos-native-x86_64.tar.gz" "$GITHUB_WORKSPACE/artifacts/macos-native-x86_64/"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
