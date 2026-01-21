@@ -1,0 +1,181 @@
+name: build-macos-native
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-meson-macos-native-arm64:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install meson ninja pkg-config jpeg-turbo libpng
+
+      - name: Setup
+        run: |
+          PREFIX="/opt/homebrew"
+          export PKG_CONFIG_PATH="${PREFIX}/opt/jpeg-turbo/lib/pkgconfig:${PREFIX}/opt/libpng/lib/pkgconfig:${PKG_CONFIG_PATH}"
+          export MACOSX_DEPLOYMENT_TARGET=11.0
+          export CFLAGS="-mmacosx-version-min=11.0"
+          export CXXFLAGS="-mmacosx-version-min=11.0"
+          export LDFLAGS="-mmacosx-version-min=11.0"
+          meson setup build -Dflavors=macos-gl --prefix="${PREFIX}"
+
+      - name: Build
+        run: ninja -C build
+
+      - name: Fix library paths for portability
+        run: |
+          PREFIX="/opt/homebrew"
+          mkdir -p /tmp/glmark2-install-libs
+          cp "${PREFIX}/opt/jpeg-turbo/lib/libjpeg.8.dylib" /tmp/glmark2-install-libs/
+          cp "${PREFIX}/opt/libpng/lib/libpng16.16.dylib" /tmp/glmark2-install-libs/
+
+          install_name_tool -change "${PREFIX}/opt/jpeg-turbo/lib/libjpeg.8.dylib" @executable_path/../lib/libjpeg.8.dylib build/src/glmark2-macos
+          install_name_tool -change "${PREFIX}/opt/libpng/lib/libpng16.16.dylib" @executable_path/../lib/libpng16.16.dylib build/src/glmark2-macos
+
+          install_name_tool -id @executable_path/../lib/libjpeg.8.dylib /tmp/glmark2-install-libs/libjpeg.8.dylib
+          install_name_tool -id @executable_path/../lib/libpng16.16.dylib /tmp/glmark2-install-libs/libpng16.16.dylib
+
+      - name: Install to staging directory
+        run: |
+          PREFIX="/opt/homebrew"
+          DESTDIR=/tmp/glmark2-install ninja -C build install
+          mkdir -p "/tmp/glmark2-install${PREFIX}/lib"
+          cp /tmp/glmark2-install-libs/*.dylib "/tmp/glmark2-install${PREFIX}/lib/"
+
+      - name: Create artifact
+        run: |
+          cd /tmp/glmark2-install
+          tar -czf glmark2-macos-native-arm64.tar.gz .
+          mkdir -p "$GITHUB_WORKSPACE/artifacts/macos-native-arm64"
+          mv glmark2-macos-native-arm64.tar.gz "$GITHUB_WORKSPACE/artifacts/macos-native-arm64/"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: glmark2-macos-native-arm64
+          path: artifacts/macos-native-arm64/glmark2-macos-native-arm64.tar.gz
+
+  build-meson-macos-native-x86_64:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install meson ninja pkg-config jpeg-turbo libpng
+
+      - name: Setup
+        run: |
+          PREFIX="/usr/local"
+          export PKG_CONFIG_PATH="${PREFIX}/opt/jpeg-turbo/lib/pkgconfig:${PREFIX}/opt/libpng/lib/pkgconfig:${PKG_CONFIG_PATH}"
+          export MACOSX_DEPLOYMENT_TARGET=10.15
+          export CFLAGS="-mmacosx-version-min=10.15"
+          export CXXFLAGS="-mmacosx-version-min=10.15"
+          export LDFLAGS="-mmacosx-version-min=10.15"
+          meson setup build -Dflavors=macos-gl --prefix="${PREFIX}"
+
+      - name: Build
+        run: ninja -C build
+
+      - name: Fix library paths for portability
+        run: |
+          PREFIX="/usr/local"
+          mkdir -p /tmp/glmark2-install-libs
+          cp "${PREFIX}/opt/jpeg-turbo/lib/libjpeg.8.dylib" /tmp/glmark2-install-libs/
+          cp "${PREFIX}/opt/libpng/lib/libpng16.16.dylib" /tmp/glmark2-install-libs/
+
+          install_name_tool -change "${PREFIX}/opt/jpeg-turbo/lib/libjpeg.8.dylib" @executable_path/../lib/libjpeg.8.dylib build/src/glmark2-macos
+          install_name_tool -change "${PREFIX}/opt/libpng/lib/libpng16.16.dylib" @executable_path/../lib/libpng16.16.dylib build/src/glmark2-macos
+
+          install_name_tool -id @executable_path/../lib/libjpeg.8.dylib /tmp/glmark2-install-libs/libjpeg.8.dylib
+          install_name_tool -id @executable_path/../lib/libpng16.16.dylib /tmp/glmark2-install-libs/libpng16.16.dylib
+
+      - name: Install to staging directory
+        run: |
+          PREFIX="/usr/local"
+          DESTDIR=/tmp/glmark2-install ninja -C build install
+          mkdir -p "/tmp/glmark2-install${PREFIX}/lib"
+          cp /tmp/glmark2-install-libs/*.dylib "/tmp/glmark2-install${PREFIX}/lib/"
+
+      - name: Create artifact
+        run: |
+          cd /tmp/glmark2-install
+          tar -czf glmark2-macos-native-x86_64.tar.gz .
+          mkdir -p "$GITHUB_WORKSPACE/artifacts/macos-native-x86_64"
+          mv glmark2-macos-native-x86_64.tar.gz "$GITHUB_WORKSPACE/artifacts/macos-native-x86_64/"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: glmark2-macos-native-x86_64
+          path: artifacts/macos-native-x86_64/glmark2-macos-native-x86_64.tar.gz
+
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    needs: [build-meson-macos-native-arm64, build-meson-macos-native-x86_64]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Collect release archives
+        run: |
+          cd release-artifacts
+          find . -name "*.tar.gz" -exec mv {} . \;
+          ls -la *.tar.gz
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
+          TAG="macos-native-${TIMESTAMP}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Generated tag: ${TAG}"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "GLMark2 macOS Native ${{ steps.tag.outputs.tag }}"
+          body: |
+            ## GLMark2 macOS Native (Cocoa) Build Artifacts
+
+            This release contains pre-built **glmark2-macos** binaries using the native macOS/Cocoa backend (no XQuartz required).
+
+            - **glmark2-macos-native-arm64.tar.gz** (Apple Silicon)
+            - **glmark2-macos-native-x86_64.tar.gz** (Intel)
+
+            #### Installation
+
+            ```bash
+            # Apple Silicon
+            sudo tar -xzf glmark2-macos-native-arm64.tar.gz -C /
+            sudo /usr/bin/xattr -cr /opt/homebrew/bin/glmark2-macos
+
+            # Intel
+            sudo tar -xzf glmark2-macos-native-x86_64.tar.gz -C /
+            sudo /usr/bin/xattr -cr /usr/local/bin/glmark2-macos
+            ```
+
+            Then run: `glmark2-macos`
+
+            **Build Date:** $(date +"%Y-%m-%d %H:%M:%S UTC")
+            **Commit:** ${{ github.sha }}
+          draft: false
+          prerelease: false
+          files: |
+            release-artifacts/*.tar.gz
