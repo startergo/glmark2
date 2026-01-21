@@ -113,7 +113,7 @@ DepthRenderTarget::setup()
     GLExtensions::FramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
                                        tex_, 0);
 
-#ifndef GL_ES
+#if !defined(GL_ES) && !defined(GLMARK2_USE_GLESv2)
     // Depth-only FBOs must not draw/read to a non-existent color attachment.
     // The default draw buffer for an FBO is typically GL_COLOR_ATTACHMENT0,
     // which makes the FBO incomplete in legacy GL if no color buffer is attached.
