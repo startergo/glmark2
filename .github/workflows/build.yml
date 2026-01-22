@@ -398,20 +398,21 @@ jobs:
           brew install --cask xquartz
           ```
           
-          **Installation:**
+          **Installation (safer staged install):**
           ```bash
-          # macOS ARM64 (Apple Silicon)
-          sudo tar -xzf glmark2-macos-arm64.tar.gz -C /
+          mkdir -p /tmp/glmark2-staging
+          tar -xzf glmark2-macos-<arch>.tar.gz -C /tmp/glmark2-staging
+          
+          # ARM64 (Homebrew prefix):
+          sudo rsync -a /tmp/glmark2-staging/opt/homebrew/ /opt/homebrew/
           sudo /usr/bin/xattr -cr /opt/homebrew/bin/glmark2
           
-          # macOS Intel (x86_64)
-          sudo tar -xzf glmark2-macos-x86_64.tar.gz -C /
+          # Intel (system prefix):
+          sudo rsync -a /tmp/glmark2-staging/usr/local/ /usr/local/
           sudo /usr/bin/xattr -cr /usr/local/bin/glmark2
           ```
           
-          The `xattr -cr` command removes quarantine attributes that macOS applies to downloaded files.
-          
-          Then run with: `glmark2`
+          See INSTALL-macos.md for full details and notes about macOS quarantine handling.
           
           Each Linux/Windows archive contains both `.tar.gz` and `.zip` formats for convenience.
           

@@ -160,12 +160,15 @@ jobs:
             #### Installation
 
             ```bash
+            mkdir -p /tmp/glmark2-staging
+            tar -xzf glmark2-macos-native-<arch>.tar.gz -C /tmp/glmark2-staging
+
             # Apple Silicon
-            sudo tar -xzf glmark2-macos-native-arm64.tar.gz -C /
+            sudo rsync -a /tmp/glmark2-staging/opt/homebrew/ /opt/homebrew/
             sudo /usr/bin/xattr -cr /opt/homebrew/bin/glmark2-macos
 
             # Intel
-            sudo tar -xzf glmark2-macos-native-x86_64.tar.gz -C /
+            sudo rsync -a /tmp/glmark2-staging/usr/local/ /usr/local/
             sudo /usr/bin/xattr -cr /usr/local/bin/glmark2-macos
             ```
 

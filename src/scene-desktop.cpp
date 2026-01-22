@@ -157,8 +157,6 @@ public:
             ShaderSource frg_source(Options::data_path + "/shaders/desktop.frag");
             Scene::load_shaders_from_strings(main_program, vtx_source.str(),
                                              frg_source.str());
-
-            glGenBuffers(1, &RenderObject::quad_vbo_);
         }
 
         texture_contents_invalid_ = true;
@@ -188,10 +186,12 @@ public:
         {
             RenderObject::main_program.release();
 
+#ifdef __APPLE__
             if (RenderObject::quad_vbo_ != 0) {
                 glDeleteBuffers(1, &RenderObject::quad_vbo_);
                 RenderObject::quad_vbo_ = 0;
             }
+#endif
         }
     }
 
@@ -343,33 +343,45 @@ protected:
 
         program.start();
 
-        /*
-         * Desktop GL core profile forbids client-side vertex arrays.
-         * Always use a VBO for this quad to work across GL/GL ES.
-         */
-        GLfloat interleaved[4 * 4] = {
-            position[0], position[1], texcoord[0], texcoord[1],
-            position[2], position[3], texcoord[2], texcoord[3],
-            position[4], position[5], texcoord[4], texcoord[5],
-            position[6], position[7], texcoord[6], texcoord[7],
-        };
+#ifdef __APPLE__
+        if (GLExtensions::is_core_profile()) {
+            /* Desktop GL core profile forbids client-side vertex arrays. */
+            if (RenderObject::quad_vbo_ == 0)
+                glGenBuffers(1, &RenderObject::quad_vbo_);
 
-        glBindBuffer(GL_ARRAY_BUFFER, RenderObject::quad_vbo_);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(interleaved), interleaved, GL_STREAM_DRAW);
+            const GLfloat interleaved[4 * 4] = {
+                position[0], position[1], texcoord[0], texcoord[1],
+                position[2], position[3], texcoord[2], texcoord[3],
+                position[4], position[5], texcoord[4], texcoord[5],
+                position[6], position[7], texcoord[6], texcoord[7],
+            };
 
-        glEnableVertexAttribArray(pos_index);
-        glEnableVertexAttribArray(tex_index);
-        glVertexAttribPointer(pos_index, 2, GL_FLOAT, GL_FALSE,
-                              4 * sizeof(GLfloat), reinterpret_cast<void*>(0));
-        glVertexAttribPointer(tex_index, 2, GL_FLOAT, GL_FALSE,
-                              4 * sizeof(GLfloat), reinterpret_cast<void*>(2 * sizeof(GLfloat)));
+            glBindBuffer(GL_ARRAY_BUFFER, RenderObject::quad_vbo_);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(interleaved), interleaved, GL_STREAM_DRAW);
 
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            glEnableVertexAttribArray(pos_index);
+            glEnableVertexAttribArray(tex_index);
+            glVertexAttribPointer(pos_index, 2, GL_FLOAT, GL_FALSE,
+                                  4 * sizeof(GLfloat), reinterpret_cast<void*>(0));
+            glVertexAttribPointer(tex_index, 2, GL_FLOAT, GL_FALSE,
+                                  4 * sizeof(GLfloat), reinterpret_cast<void*>(2 * sizeof(GLfloat)));
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-        glDisableVertexAttribArray(tex_index);
-        glDisableVertexAttribArray(pos_index);
+            glDisableVertexAttribArray(tex_index);
+            glDisableVertexAttribArray(pos_index);
 
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+        } else
+#endif
+        {
+            glEnableVertexAttribArray(pos_index);
+            glEnableVertexAttribArray(tex_index);
+            glVertexAttribPointer(pos_index, 2, GL_FLOAT, GL_FALSE, 0, position);
+            glVertexAttribPointer(tex_index, 2, GL_FLOAT, GL_FALSE, 0, texcoord);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            glDisableVertexAttribArray(tex_index);
+            glDisableVertexAttribArray(pos_index);
+        }
 
         program.stop();
     }

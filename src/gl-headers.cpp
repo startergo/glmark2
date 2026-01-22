@@ -45,24 +45,25 @@ GLExtensions::support(const std::string &ext)
     // modern desktop OpenGL, and may not appear in the extension string list
     // in core profile contexts.
     if (ext == "GL_ARB_depth_texture") {
-        const char* ver = reinterpret_cast<const char*>(glGetString(GL_VERSION));
-        if (ver && std::string(ver).find("OpenGL ES") == std::string::npos)
+#if GLMARK2_USE_GL
+        if (GLExtensions::is_core_profile())
             return true;
+#endif
     }
 
     const char* exts = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
     if (exts && *exts) {
         const std::string ext_string(exts);
-        const size_t ext_size = ext.size();
         size_t pos = 0;
-
         while ((pos = ext_string.find(ext, pos)) != std::string::npos) {
-            char c = ext_string[pos + ext_size];
-            if (c == ' ' || c == '\0')
-                break;
+            const bool ok_before = (pos == 0) || (ext_string[pos - 1] == ' ');
+            const size_t after = pos + ext.size();
+            const bool ok_after = (after == ext_string.size()) || (ext_string[after] == ' ');
+            if (ok_before && ok_after)
+                return true;
+            pos = after;
         }
-
-        return pos != std::string::npos;
+        return false;
     }
 
 #ifdef GL_NUM_EXTENSIONS

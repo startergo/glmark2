@@ -16,8 +16,12 @@
 #include <iostream>
 
 #include <cctype>
+#include <cstdlib>
 
 #include "gl-if.h"
+#if GLMARK2_USE_GL
+#include "gl-headers.h"
+#endif
 #include "program.h"
 
 namespace
@@ -56,26 +60,37 @@ bool has_version_directive(const std::string& s)
     return (i + 8 <= s.size() && s.compare(i, 8, "#version") == 0);
 }
 
-bool is_core_profile_context()
+int get_glsl_version_100()
 {
-#ifdef GL_CONTEXT_PROFILE_MASK
-    GLint mask = 0;
-    glGetIntegerv(GL_CONTEXT_PROFILE_MASK, &mask);
-    if (glGetError() == GL_NO_ERROR) {
-#ifdef GL_CONTEXT_CORE_PROFILE_BIT
-        return (mask & GL_CONTEXT_CORE_PROFILE_BIT) != 0;
-#else
-        return (mask & 0x00000001) != 0;
-#endif
-    }
-#endif
+    const char* s = reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION));
+    if (!s)
+        return 0;
 
-    // In core profile, GL_EXTENSIONS is not queryable via glGetString.
-    const char* exts = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
-    if (!exts)
-        return true;
+    // Examples:
+    //  - "4.10"
+    //  - "3.30 NVIDIA via Cg compiler"
+    //  - "OpenGL ES GLSL ES 3.00"
+    int major = 0;
+    int minor = 0;
+    const char* p = s;
+    while (*p && !std::isdigit(static_cast<unsigned char>(*p)))
+        ++p;
+    if (!*p)
+        return 0;
+    major = std::strtol(p, const_cast<char**>(&p), 10);
+    if (*p != '.')
+        return 0;
+    ++p;
+    minor = std::strtol(p, nullptr, 10);
 
-    return false;
+    // GLSL versions map 4.10 -> 410, 3.30 -> 330, 1.50 -> 150.
+    if (major <= 0)
+        return 0;
+    if (minor < 0)
+        minor = 0;
+    if (minor >= 100)
+        minor = minor % 100;
+    return major * 100 + minor;
 }
 
 std::string make_core_compat_glsl(unsigned int type, const std::string& src)
@@ -271,8 +286,14 @@ Program::addShader(unsigned int type, const string& source)
     }
 
     string shader_source(source);
-    if (is_core_profile_context())
+
+    // Keep other platforms/flavors stable: only rewrite sources when we are
+    // actually running on a desktop GL core profile context *and* the
+    // implementation supports GLSL 3.30+ (needed for layout-qualified outputs).
+#if GLMARK2_USE_GL
+    if (GLExtensions::is_core_profile() && get_glsl_version_100() >= 330)
         shader_source = make_core_compat_glsl(type, shader_source);
+#endif
 
     Shader shader(type, shader_source);
     if (!shader.valid())
