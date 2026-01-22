@@ -41,20 +41,73 @@ void (GLAD_API_PTR *GLExtensions::GenerateMipmap)(GLenum target) = 0;
 bool
 GLExtensions::support(const std::string &ext)
 {
-    std::string ext_string;
+    // Some features that were historically exposed via extensions are core in
+    // modern desktop OpenGL, and may not appear in the extension string list
+    // in core profile contexts.
+    if (ext == "GL_ARB_depth_texture") {
+        const char* ver = reinterpret_cast<const char*>(glGetString(GL_VERSION));
+        if (ver && std::string(ver).find("OpenGL ES") == std::string::npos)
+            return true;
+    }
+
     const char* exts = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
-    if (exts) {
-        ext_string = exts;
+    if (exts && *exts) {
+        const std::string ext_string(exts);
+        const size_t ext_size = ext.size();
+        size_t pos = 0;
+
+        while ((pos = ext_string.find(ext, pos)) != std::string::npos) {
+            char c = ext_string[pos + ext_size];
+            if (c == ' ' || c == '\0')
+                break;
+        }
+
+        return pos != std::string::npos;
     }
 
-    const size_t ext_size = ext.size();
-    size_t pos = 0;
-
-    while ((pos = ext_string.find(ext, pos)) != std::string::npos) {
-        char c = ext_string[pos + ext_size];
-        if (c == ' ' || c == '\0')
-            break;
+#ifdef GL_NUM_EXTENSIONS
+    GLint num_ext = 0;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &num_ext);
+    if (glGetError() == GL_NO_ERROR && num_ext > 0) {
+        for (GLint i = 0; i < num_ext; ++i) {
+            const char* e = reinterpret_cast<const char*>(glGetStringi(GL_EXTENSIONS, i));
+            if (e && ext == e)
+                return true;
+        }
     }
+#endif
 
-    return pos != std::string::npos;
+    return false;
+}
+
+bool
+GLExtensions::is_core_profile()
+{
+#if GLMARK2_USE_GL
+#ifdef GL_CONTEXT_PROFILE_MASK
+    GLint mask = 0;
+    glGetIntegerv(GL_CONTEXT_PROFILE_MASK, &mask);
+    if (glGetError() == GL_NO_ERROR && mask != 0) {
+#ifdef GL_CONTEXT_CORE_PROFILE_BIT
+        return (mask & GL_CONTEXT_CORE_PROFILE_BIT) != 0;
+#else
+        /* If we can query the mask but don't have the bit constant, be conservative. */
+        return false;
+#endif
+    }
+#endif
+
+    /* Fallback: in desktop GL core profile, GL_EXTENSIONS via glGetString is invalid. */
+    const GLubyte* exts = glGetString(GL_EXTENSIONS);
+    if (!exts)
+        return true;
+
+    const GLubyte* ver = glGetString(GL_VERSION);
+    if (ver && std::string(reinterpret_cast<const char*>(ver)).find("OpenGL ES") != std::string::npos)
+        return false;
+
+    return false;
+#else
+    return false;
+#endif
 }

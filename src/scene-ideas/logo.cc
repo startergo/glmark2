@@ -499,9 +499,22 @@ SGILogo::init()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA,
+    // GL_ALPHA is not available in modern/core profiles; upload an RGBA texture
+    // with the stipple pattern in the alpha channel.
+    GLubyte rgbaTextureImage[textureResolution_][textureResolution_][4];
+    for (unsigned int i = 0; i < textureResolution_; i++)
+    {
+        for (unsigned int j = 0; j < textureResolution_; j++)
+        {
+            rgbaTextureImage[i][j][0] = 0;
+            rgbaTextureImage[i][j][1] = 0;
+            rgbaTextureImage[i][j][2] = 0;
+            rgbaTextureImage[i][j][3] = textureImage_[i][j];
+        }
+    }
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
                  textureResolution_, textureResolution_,
-                 0, GL_ALPHA, GL_UNSIGNED_BYTE, textureImage_);
+                 0, GL_RGBA, GL_UNSIGNED_BYTE, rgbaTextureImage);
 
     // We're ready to go.
     valid_ = true;
@@ -655,6 +668,9 @@ SGILogo::draw(Stack4& modelview,
             break;
         case LOGO_SHADOW:
             vertexIndex_ = shadowVertexIndex_;
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, textureName_);
+            curProgram["tex"] = 0;
             break;            
     }
 

@@ -7,12 +7,13 @@ on:
   pull_request:
     branches:
     - master
+  workflow_dispatch:
 
 jobs:
   build-meson:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -23,11 +24,21 @@ jobs:
       run: ninja -C build
     - name: Install
       run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/linux-all-flavors
+        cp -r /tmp/glmark2-install/* artifacts/linux-all-flavors/
+        cp build/src/glmark2-* artifacts/linux-all-flavors/ 2>/dev/null || true
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: glmark2-linux-all-flavors
+        path: artifacts/linux-all-flavors/
 
   build-meson-only-drm:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -38,6 +49,16 @@ jobs:
       run: ninja -C build
     - name: Install
       run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/linux-drm-only
+        cp -r /tmp/glmark2-install/* artifacts/linux-drm-only/
+        cp build/src/glmark2-* artifacts/linux-drm-only/ 2>/dev/null || true
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: glmark2-linux-drm-only
+        path: artifacts/linux-drm-only/
 
   build-meson-only-gbm:
     runs-on: ubuntu-22.04
@@ -57,7 +78,7 @@ jobs:
   build-meson-only-wayland:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -68,11 +89,21 @@ jobs:
       run: ninja -C build
     - name: Install
       run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/linux-wayland-only
+        cp -r /tmp/glmark2-install/* artifacts/linux-wayland-only/
+        cp build/src/glmark2-* artifacts/linux-wayland-only/ 2>/dev/null || true
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: glmark2-linux-wayland-only
+        path: artifacts/linux-wayland-only/
 
   build-meson-only-x11:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -83,11 +114,21 @@ jobs:
       run: ninja -C build
     - name: Install
       run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/linux-x11-only
+        cp -r /tmp/glmark2-install/* artifacts/linux-x11-only/
+        cp build/src/glmark2-* artifacts/linux-x11-only/ 2>/dev/null || true
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: glmark2-linux-x11-only
+        path: artifacts/linux-x11-only/
 
   build-meson-only-null:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -98,11 +139,21 @@ jobs:
       run: ninja -C build
     - name: Install
       run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/linux-null-only
+        cp -r /tmp/glmark2-install/* artifacts/linux-null-only/
+        cp build/src/glmark2-* artifacts/linux-null-only/ 2>/dev/null || true
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: glmark2-linux-null-only
+        path: artifacts/linux-null-only/
 
   build-meson-only-dispmanx:
     runs-on: ubuntu-22.04-arm
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -113,11 +164,21 @@ jobs:
       run: ninja -C build
     - name: Install
       run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/linux-dispmanx-only
+        cp -r /tmp/glmark2-install/* artifacts/linux-dispmanx-only/
+        cp build/src/glmark2-* artifacts/linux-dispmanx-only/ 2>/dev/null || true
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: glmark2-linux-dispmanx-only
+        path: artifacts/linux-dispmanx-only/
 
   build-meson-win32-mingw:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -128,13 +189,23 @@ jobs:
       run: ninja -C build
     - name: Install
       run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/windows-mingw
+        cp -r /tmp/glmark2-install/* artifacts/windows-mingw/
+        cp build/src/glmark2*.exe artifacts/windows-mingw/ 2>/dev/null || true
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: glmark2-windows-mingw
+        path: artifacts/windows-mingw/
 
   build-meson-win32-msvc:
     runs-on: windows-2022
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Setup Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: '3.x'
     - name: Install meson
@@ -143,3 +214,211 @@ jobs:
       run: meson setup --vsenv build -Dflavors='win32-gl,win32-glesv2'
     - name: Build
       run: meson compile -C build
+    - name: Install
+      run: meson install -C build --destdir ../glmark2-install
+    - name: Create artifact directory
+      run: |
+        mkdir artifacts\windows-msvc
+        xcopy glmark2-install\* artifacts\windows-msvc\ /E /I
+        copy build\src\glmark2*.exe artifacts\windows-msvc\ 2>nul || echo "No exe files found in build directory"
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: glmark2-windows-msvc
+        path: artifacts/windows-msvc/
+
+  build-meson-macos-arm64:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: |
+        brew install meson ninja pkg-config jpeg-turbo libpng
+    - name: Install XQuartz
+      run: |
+        brew install --cask xquartz
+    - name: Setup
+      run: |
+        export PKG_CONFIG_PATH="/opt/homebrew/opt/jpeg-turbo/lib/pkgconfig:/opt/homebrew/opt/libpng/lib/pkgconfig:$PKG_CONFIG_PATH"
+        export MACOSX_DEPLOYMENT_TARGET=11.0
+        export CFLAGS="-mmacosx-version-min=11.0"
+        export CXXFLAGS="-mmacosx-version-min=11.0"
+        export LDFLAGS="-mmacosx-version-min=11.0"
+        meson setup build -Dflavors=x11-gl --prefix=/opt/homebrew
+    - name: Build
+      run: ninja -C build
+    - name: Fix library paths for portability
+      run: |
+        # Copy required dynamic libraries to a local lib directory
+        mkdir -p /tmp/glmark2-install-libs
+        cp /opt/homebrew/opt/jpeg-turbo/lib/libjpeg.8.dylib /tmp/glmark2-install-libs/
+        cp /opt/homebrew/opt/libpng/lib/libpng16.16.dylib /tmp/glmark2-install-libs/
+        # Fix library paths in binary to use @executable_path
+        install_name_tool -change /opt/homebrew/opt/jpeg-turbo/lib/libjpeg.8.dylib @executable_path/../lib/libjpeg.8.dylib build/src/glmark2
+        install_name_tool -change /opt/homebrew/opt/libpng/lib/libpng16.16.dylib @executable_path/../lib/libpng16.16.dylib build/src/glmark2
+        # Fix library IDs and inter-dependencies
+        install_name_tool -id @executable_path/../lib/libjpeg.8.dylib /tmp/glmark2-install-libs/libjpeg.8.dylib
+        install_name_tool -id @executable_path/../lib/libpng16.16.dylib /tmp/glmark2-install-libs/libpng16.16.dylib
+    - name: Install to staging directory
+      run: |
+        DESTDIR=/tmp/glmark2-install ninja -C build install
+        # Add bundled libraries
+        mkdir -p /tmp/glmark2-install/opt/homebrew/lib
+        cp /tmp/glmark2-install-libs/*.dylib /tmp/glmark2-install/opt/homebrew/lib/
+    - name: Create artifact with proper structure
+      run: |
+        cd /tmp/glmark2-install
+        tar -czf glmark2-macos-arm64.tar.gz .
+        mkdir -p $GITHUB_WORKSPACE/artifacts/macos-arm64
+        mv glmark2-macos-arm64.tar.gz $GITHUB_WORKSPACE/artifacts/macos-arm64/
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: glmark2-macos-arm64
+        path: artifacts/macos-arm64/glmark2-macos-arm64.tar.gz
+
+  build-meson-macos-x86_64:
+    runs-on: macos-15-intel
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: |
+        brew install meson ninja pkg-config jpeg-turbo libpng
+    - name: Install XQuartz
+      run: |
+        brew install --cask xquartz
+    - name: Setup
+      run: |
+        export PKG_CONFIG_PATH="/usr/local/opt/jpeg-turbo/lib/pkgconfig:/usr/local/opt/libpng/lib/pkgconfig:$PKG_CONFIG_PATH"
+        export MACOSX_DEPLOYMENT_TARGET=10.15
+        export CFLAGS="-mmacosx-version-min=10.15"
+        export CXXFLAGS="-mmacosx-version-min=10.15"
+        export LDFLAGS="-mmacosx-version-min=10.15"
+        meson setup build -Dflavors=x11-gl --prefix=/usr/local
+    - name: Build
+      run: ninja -C build
+    - name: Fix library paths for portability
+      run: |
+        # Copy required dynamic libraries to a local lib directory
+        mkdir -p /tmp/glmark2-install-libs
+        cp /usr/local/opt/jpeg-turbo/lib/libjpeg.8.dylib /tmp/glmark2-install-libs/
+        cp /usr/local/opt/libpng/lib/libpng16.16.dylib /tmp/glmark2-install-libs/
+        # Fix library paths in binary to use @executable_path
+        install_name_tool -change /usr/local/opt/jpeg-turbo/lib/libjpeg.8.dylib @executable_path/../lib/libjpeg.8.dylib build/src/glmark2
+        install_name_tool -change /usr/local/opt/libpng/lib/libpng16.16.dylib @executable_path/../lib/libpng16.16.dylib build/src/glmark2
+        # Fix library IDs and inter-dependencies
+        install_name_tool -id @executable_path/../lib/libjpeg.8.dylib /tmp/glmark2-install-libs/libjpeg.8.dylib
+        install_name_tool -id @executable_path/../lib/libpng16.16.dylib /tmp/glmark2-install-libs/libpng16.16.dylib
+    - name: Install to staging directory
+      run: |
+        DESTDIR=/tmp/glmark2-install ninja -C build install
+        # Add bundled libraries
+        mkdir -p /tmp/glmark2-install/usr/local/lib
+        cp /tmp/glmark2-install-libs/*.dylib /tmp/glmark2-install/usr/local/lib/
+    - name: Create artifact with proper structure
+      run: |
+        cd /tmp/glmark2-install
+        tar -czf glmark2-macos-x86_64.tar.gz .
+        mkdir -p $GITHUB_WORKSPACE/artifacts/macos-x86_64
+        mv glmark2-macos-x86_64.tar.gz $GITHUB_WORKSPACE/artifacts/macos-x86_64/
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: glmark2-macos-x86_64
+        path: artifacts/macos-x86_64/glmark2-macos-x86_64.tar.gz
+
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    needs: [build-meson, build-meson-only-drm, build-meson-only-wayland, build-meson-only-x11, build-meson-only-null, build-meson-only-dispmanx, build-meson-win32-mingw, build-meson-win32-msvc, build-meson-macos-arm64, build-meson-macos-x86_64]
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: release-artifacts
+    - name: Create release archives
+      run: |
+        cd release-artifacts
+        # macOS archives are already tarballs, just copy them
+        find . -name "*.tar.gz" -exec mv {} . \;
+        # Create archives for other platforms
+        for dir in */; do
+          if [ -d "$dir" ]; then
+            case "$dir" in
+              glmark2-macos-*)
+                echo "Skipping $dir - already archived"
+                ;;
+              *)
+                echo "Creating archive for $dir"
+                tar -czf "${dir%/}.tar.gz" -C "$dir" .
+                zip -r "${dir%/}.zip" "$dir"
+                ;;
+            esac
+          fi
+        done
+        ls -la *.tar.gz *.zip 2>/dev/null || true
+    - name: Generate release tag
+      id: tag
+      run: |
+        TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
+        TAG="release-${TIMESTAMP}"
+        echo "tag=${TAG}" >> $GITHUB_OUTPUT
+        echo "Generated tag: ${TAG}"
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.tag.outputs.tag }}
+        name: "GLMark2 Release ${{ steps.tag.outputs.tag }}"
+        body: |
+          ## GLMark2 Build Artifacts
+          
+          This release contains pre-built GLMark2 binaries for multiple platforms and configurations:
+          
+          ### Linux Builds
+          - **glmark2-linux-all-flavors** - Complete build with all display backends (X11, Wayland, DRM, null)
+          - **glmark2-linux-drm-only** - DRM-only build for direct rendering
+          - **glmark2-linux-wayland-only** - Wayland-only build
+          - **glmark2-linux-x11-only** - X11-only build
+          - **glmark2-linux-null-only** - Headless/null build for benchmarking without display
+          - **glmark2-linux-dispmanx-only** - Raspberry Pi DispmanX build
+          
+          ### Windows Builds
+          - **glmark2-windows-mingw** - Windows build using MinGW cross-compilation
+          - **glmark2-windows-msvc** - Windows build using native MSVC
+          
+          ### macOS Builds
+          - **glmark2-macos-arm64** - macOS Apple Silicon (ARM64) build with XQuartz
+          - **glmark2-macos-x86_64** - macOS Intel (x86_64) build with XQuartz
+          
+          #### macOS Installation
+          
+          **Prerequisites:** Install XQuartz first:
+          ```bash
+          brew install --cask xquartz
+          ```
+          
+          **Installation:**
+          ```bash
+          # macOS ARM64 (Apple Silicon)
+          sudo tar -xzf glmark2-macos-arm64.tar.gz -C /
+          sudo /usr/bin/xattr -cr /opt/homebrew/bin/glmark2
+          
+          # macOS Intel (x86_64)
+          sudo tar -xzf glmark2-macos-x86_64.tar.gz -C /
+          sudo /usr/bin/xattr -cr /usr/local/bin/glmark2
+          ```
+          
+          The `xattr -cr` command removes quarantine attributes that macOS applies to downloaded files.
+          
+          Then run with: `glmark2`
+          
+          Each Linux/Windows archive contains both `.tar.gz` and `.zip` formats for convenience.
+          
+          **Build Date:** $(date +"%Y-%m-%d %H:%M:%S UTC")
+          **Commit:** ${{ github.sha }}
+        draft: false
+        prerelease: false
+        files: |
+          release-artifacts/*.tar.gz
+          release-artifacts/*.zip

@@ -83,6 +83,13 @@ struct GLExtensions {
      */
     static bool support(const std::string &ext);
 
+    /**
+     * Whether the current context is a desktop OpenGL core profile context.
+     *
+     * This is useful because core profile forbids client-side vertex arrays.
+     */
+    static bool is_core_profile();
+
     static void* (GLAD_API_PTR *MapBuffer) (GLenum target, GLenum access);
     static GLboolean (GLAD_API_PTR *UnmapBuffer) (GLenum target);
 

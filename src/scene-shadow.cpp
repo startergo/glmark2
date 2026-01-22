@@ -112,6 +112,15 @@ DepthRenderTarget::setup()
     GLExtensions::BindFramebuffer(GL_FRAMEBUFFER, fbo_);
     GLExtensions::FramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
                                        tex_, 0);
+
+#if !defined(GL_ES) && !defined(GLMARK2_USE_GLESv2)
+    // Depth-only FBOs must not draw/read to a non-existent color attachment.
+    // The default draw buffer for an FBO is typically GL_COLOR_ATTACHMENT0,
+    // which makes the FBO incomplete in legacy GL if no color buffer is attached.
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+#endif
+
     unsigned int status = GLExtensions::CheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE) {
         Log::error("DepthRenderTarget::setup: glCheckFramebufferStatus failed (0x%x)\n", status);
@@ -345,6 +354,8 @@ ShadowPrivate::setup(map<string, Scene::Option>& options)
     model.convert_to_mesh(mesh_, attribs);
 
     useVbo_ = (options["use-vbo"].value == "true");
+    if (!useVbo_ && GLExtensions::is_core_profile())
+        useVbo_ = true;
     bool interleave = (options["interleave"].value == "true");
     mesh_.vbo_update_method(Mesh::VBOUpdateMethodMap);
     mesh_.interleave(interleave);

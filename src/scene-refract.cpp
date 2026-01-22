@@ -332,6 +332,8 @@ RefractPrivate::setup(map<string, Scene::Option>& options)
     model.convert_to_mesh(mesh_, attribs);
 
     useVbo_ = (options["use-vbo"].value == "true");
+    if (!useVbo_ && GLExtensions::is_core_profile())
+        useVbo_ = true;
     bool interleave = (options["interleave"].value == "true");
     mesh_.vbo_update_method(Mesh::VBOUpdateMethodMap);
     mesh_.interleave(interleave);

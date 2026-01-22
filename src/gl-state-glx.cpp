@@ -26,6 +26,11 @@
 
 #include <climits>
 
+namespace {
+bool warned_no_swap_control = false;
+bool warned_failed_set_swap_interval = false;
+}
+
 /******************
  * Public methods *
  ******************/
@@ -41,13 +46,55 @@ GLStateGLX::init_display(void* native_display, GLVisualConfig& visual_config)
     xdpy_ = reinterpret_cast<Display*>(native_display);
     requested_visual_config_ = visual_config;
 
+#ifdef GLMARK2_USE_APPLE_OPENGL
+    // On macOS with XQuartz, use the XQuartz libGL which has GLX support
+    if (!lib_.open_from_alternatives({"/opt/X11/lib/libGL.dylib", "/opt/X11/lib/libGL.1.dylib", "libGL.dylib", "libGL.1.dylib"})) {
+        Log::error("Failed to load libGL from XQuartz\n");
+        return false;
+    }
+    Log::debug("Successfully loaded libGL library\n");
+    
+    // Test if we can load a basic GLX function
+    void* test_func = lib_.load("glXQueryVersion");
+    if (!test_func) {
+        Log::error("Failed to load glXQueryVersion from libGL\n");
+        return false;
+    }
+    Log::debug("Successfully loaded glXQueryVersion test function\n");
+#else
     if (!lib_.open_from_alternatives({"libGL.so", "libGL.so.1"})) {
         Log::error("Failed to load libGL\n");
         return false;
     }
+#endif
 
-    gladLoadGLXUserPtr(xdpy_, DefaultScreen(xdpy_), load_proc, this);
-    return (xdpy_ != 0);
+    if (!xdpy_) {
+        Log::error("Display pointer is NULL\n");
+        return false;
+    }
+    
+    int screen = DefaultScreen(xdpy_);
+    Log::debug("Display: %p, Screen: %d\n", xdpy_, screen);
+    
+    // Try to manually load and call glXQueryVersion as a test
+    typedef Bool (*glXQueryVersionProc)(Display*, int*, int*);
+    glXQueryVersionProc queryVersion = reinterpret_cast<glXQueryVersionProc>(lib_.load("glXQueryVersion"));
+    if (queryVersion) {
+        int major, minor;
+        Bool result = queryVersion(xdpy_, &major, &minor);
+        Log::debug("Manual glXQueryVersion result: %d, version: %d.%d\n", result, major, minor);
+    } else {
+        Log::debug("Could not load glXQueryVersion manually\n");
+    }
+    
+    int glx_loaded = gladLoadGLXUserPtr(xdpy_, screen, load_proc, this);
+    Log::debug("gladLoadGLXUserPtr returned: %d\n", glx_loaded);
+    if (glx_loaded == 0) {
+        Log::error("Failed to load GLX functions\n");
+        return false;
+    }
+    
+    return true;
 }
 
 bool
@@ -110,6 +157,13 @@ GLStateGLX::valid()
 
     unsigned int desired_swap(Options::swap_mode == Options::SwapModeFIFO ? 1 : 0);
     unsigned int actual_swap(-1);
+
+    // If swap-control extensions are not available (common on XQuartz),
+    // avoid spamming per-scene warnings; we already report capability
+    // once in init_extensions().
+    if (!glXSwapIntervalEXT && !glXSwapIntervalMESA)
+        return true;
+
     if (glXSwapIntervalEXT) {
         glXSwapIntervalEXT(xdpy_, xwin_, desired_swap);
         glXQueryDrawable(xdpy_, xwin_, GLX_SWAP_INTERVAL_EXT, &actual_swap);
@@ -124,7 +178,10 @@ GLStateGLX::valid()
             return true;
     }
 
-    Log::info("** Failed to set swap interval. Results may be bounded above by refresh rate.\n");
+    if (!warned_failed_set_swap_interval) {
+        Log::info("** Failed to set swap interval. Results may be bounded above by refresh rate.\n");
+        warned_failed_set_swap_interval = true;
+    }
 
     return true;
 }
@@ -226,7 +283,10 @@ GLStateGLX::init_extensions()
      * value (i.e. you can't turn off VSync).
      */
     if (!glXSwapIntervalEXT && !glXSwapIntervalMESA) {
-        Log::info("** GLX does not support GLX_EXT_swap_control or GLX_MESA_swap_control!\n");
+        if (!warned_no_swap_control) {
+            Log::debug("** GLX does not support GLX_EXT_swap_control or GLX_MESA_swap_control!\n");
+            warned_no_swap_control = true;
+        }
     }
 }
 
@@ -374,6 +434,9 @@ GLStateGLX::select_best_config(std::vector<GLXFBConfig> configs)
 GLADapiproc
 GLStateGLX::load_proc(void *userptr, const char* name)
 {
+    GLStateGLX* state = reinterpret_cast<GLStateGLX*>(userptr);
+    
+    // Try glXGetProcAddress first for extension functions (standard GLX pattern)
     if (glXGetProcAddress) {
         const GLubyte* bytes = reinterpret_cast<const GLubyte*>(name);
         GLADapiproc sym = glXGetProcAddress(bytes);
@@ -381,7 +444,7 @@ GLStateGLX::load_proc(void *userptr, const char* name)
             return sym;
         }
     }
-
-    GLStateGLX* state = reinterpret_cast<GLStateGLX*>(userptr);
+    
+    // Fall back to direct library loading for bootstrap and core functions
     return reinterpret_cast<GLADapiproc>(state->lib_.load(name));
 }

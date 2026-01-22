@@ -157,6 +157,8 @@ public:
             ShaderSource frg_source(Options::data_path + "/shaders/desktop.frag");
             Scene::load_shaders_from_strings(main_program, vtx_source.str(),
                                              frg_source.str());
+
+            glGenBuffers(1, &RenderObject::quad_vbo_);
         }
 
         texture_contents_invalid_ = true;
@@ -183,7 +185,14 @@ public:
          */
         RenderObject::use_count--;
         if (RenderObject::use_count == 0)
+        {
             RenderObject::main_program.release();
+
+            if (RenderObject::quad_vbo_ != 0) {
+                glDeleteBuffers(1, &RenderObject::quad_vbo_);
+                RenderObject::quad_vbo_ = 0;
+            }
+        }
     }
 
     virtual void make_current()
@@ -334,22 +343,39 @@ protected:
 
         program.start();
 
+        /*
+         * Desktop GL core profile forbids client-side vertex arrays.
+         * Always use a VBO for this quad to work across GL/GL ES.
+         */
+        GLfloat interleaved[4 * 4] = {
+            position[0], position[1], texcoord[0], texcoord[1],
+            position[2], position[3], texcoord[2], texcoord[3],
+            position[4], position[5], texcoord[4], texcoord[5],
+            position[6], position[7], texcoord[6], texcoord[7],
+        };
+
+        glBindBuffer(GL_ARRAY_BUFFER, RenderObject::quad_vbo_);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(interleaved), interleaved, GL_STREAM_DRAW);
+
         glEnableVertexAttribArray(pos_index);
         glEnableVertexAttribArray(tex_index);
-        glVertexAttribPointer(pos_index, 2,
-                              GL_FLOAT, GL_FALSE, 0, position);
-        glVertexAttribPointer(tex_index, 2,
-                              GL_FLOAT, GL_FALSE, 0, texcoord);
+        glVertexAttribPointer(pos_index, 2, GL_FLOAT, GL_FALSE,
+                              4 * sizeof(GLfloat), reinterpret_cast<void*>(0));
+        glVertexAttribPointer(tex_index, 2, GL_FLOAT, GL_FALSE,
+                              4 * sizeof(GLfloat), reinterpret_cast<void*>(2 * sizeof(GLfloat)));
 
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
         glDisableVertexAttribArray(tex_index);
         glDisableVertexAttribArray(pos_index);
 
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
         program.stop();
     }
 
     static Program main_program;
+    static GLuint quad_vbo_;
 
     LibMatrix::vec2 pos_;
     LibMatrix::vec2 size_;
@@ -376,6 +402,7 @@ private:
 
 int RenderObject::use_count = 0;
 Program RenderObject::main_program;
+GLuint RenderObject::quad_vbo_ = 0;
 
 /**
  * A RenderObject representing the screen.

@@ -216,6 +216,33 @@ else
     native_x11_dep = declare_dependency()
 endif
 
+if need_macos
+    native_macos_lib = static_library(
+        'native-macos',
+        'native-state-macos.mm',
+        dependencies: [apple_frameworks_dep, libmatrix_headers_dep],
+        )
+
+    native_macos_dep = declare_dependency(
+        link_with: native_macos_lib,
+        dependencies: apple_frameworks_dep,
+        compile_args: ['-DGLMARK2_USE_MACOS'],
+        )
+
+    wsi_macos_dep = declare_dependency(
+        sources: ['gl-state-macos.mm'],
+        dependencies: apple_frameworks_dep,
+        include_directories: [
+            include_directories('glad/include'),
+            include_directories('libmatrix'),
+            ],
+        compile_args: ['-DGLMARK2_USE_MACOS'],
+        )
+else
+    native_macos_dep = declare_dependency()
+    wsi_macos_dep = declare_dependency()
+endif
+
 if need_gl
     gl_gl_lib = static_library(
         'gl-gl',
@@ -299,7 +326,7 @@ if need_glx
     # and parity with gl-state-egl.
     wsi_glx_dep = declare_dependency(
         sources: ['gl-state-glx.cpp', 'glad/src/glx.c'],
-        dependencies: x11_dep,
+        dependencies: [x11_dep, opengl_dep],
         include_directories: [
             include_directories('glad/include'),
             include_directories('libmatrix'),
@@ -340,6 +367,7 @@ flavor_info = {
   'x11-gl' : ['glmark2', native_x11_dep, gl_gl_dep, wsi_glx_dep],
   'x11-gl-egl' : ['glmark2-egl', native_x11_dep, gl_gl_dep, wsi_egl_dep],
   'x11-glesv2' : ['glmark2-es2', native_x11_dep, gl_glesv2_dep, wsi_egl_dep],
+    'macos-gl' : ['glmark2-macos', native_macos_dep, gl_gl_dep, wsi_macos_dep],
 }
 
 foreach flavor : flavors
