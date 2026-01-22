@@ -74,10 +74,52 @@ gh release download --repo <OWNER>/<REPO> --pattern "glmark2-macos-native-*.tar.
 
 ### 2) Install the archive (system-wide)
 
-These archives are structured to be extracted at the filesystem root:
+These archives contain a prefix like `opt/homebrew/...` (Apple Silicon) or `usr/local/...` (Intel).
+
+For safety, avoid extracting an unverified tarball directly into `/` as root.
+
+#### Verify integrity (recommended)
+
+If the release/run provides a SHA-256 checksum file, verify it before installing:
 
 ```sh
-sudo tar -xzf /path/to/the-archive.tar.gz -C /
+shasum -a 256 /path/to/the-archive.tar.gz
+# compare the output to the published checksum
+```
+
+#### Safer install via staging directory (recommended)
+
+1) Extract to a temporary staging directory as your user:
+
+```sh
+STAGE="$(mktemp -d)"
+tar -xzf /path/to/the-archive.tar.gz -C "$STAGE"
+```
+
+2) Inspect the contents (make sure it only contains the expected prefix):
+
+```sh
+find "$STAGE" -maxdepth 3 -type d | head
+```
+
+3) Copy only the expected prefix into place:
+
+```sh
+# Apple Silicon archives (typically use /opt/homebrew)
+if [ -d "$STAGE/opt/homebrew" ]; then
+  sudo rsync -a --delete "$STAGE/opt/homebrew/" /opt/homebrew/
+fi
+
+# Intel archives (typically use /usr/local)
+if [ -d "$STAGE/usr/local" ]; then
+  sudo rsync -a --delete "$STAGE/usr/local/" /usr/local/
+fi
+```
+
+4) Clean up:
+
+```sh
+rm -rf "$STAGE"
 ```
 
 ### 3) Remove Gatekeeper quarantine
