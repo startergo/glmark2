@@ -267,16 +267,16 @@ bool GLStateMacOS::ensure_context()
             [attrs addObject:@(requested_visual_config_.samples)];
         }
 
-        [attrs addObject:@(0)];
-
         NSOpenGLPixelFormatAttribute c_attrs[64];
+        const NSUInteger maxAttrs = sizeof(c_attrs) / sizeof(c_attrs[0]);
         NSUInteger idx = 0;
         for (NSNumber* n in attrs) {
-            if (idx >= (sizeof(c_attrs) / sizeof(c_attrs[0])))
+            // Reserve space for the terminating 0 in c_attrs.
+            if (idx >= maxAttrs - 1)
                 break;
             c_attrs[idx++] = (NSOpenGLPixelFormatAttribute)[n intValue];
         }
-        c_attrs[(idx < (sizeof(c_attrs) / sizeof(c_attrs[0]))) ? idx : (sizeof(c_attrs) / sizeof(c_attrs[0]) - 1)] = 0;
+        c_attrs[idx] = 0;
 
         impl_->pixel_format = [[NSOpenGLPixelFormat alloc] initWithAttributes:c_attrs];
 
