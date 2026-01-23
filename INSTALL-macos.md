@@ -219,6 +219,33 @@ glmark2-macos --frame-end finish
 glmark2-macos --validate
 ```
 
+### macOS-only GL4.x feature scenes
+
+When you build the native backend (`-Dflavors=macos-gl`) these extra scenes are included by default on core profile and automatically skipped on legacy profile.
+
+Scenes:
+- `gl41-instancing` (instancing + UBO)
+  - Options: `instances` (default 4096)
+- `gl41-pipeline` (separate shader objects + program pipeline, 3D instanced grid)
+  - Options: `grid` (default 10, clamps 1..16)
+- `gl41-mrt` (MRT + per-target blend state)
+  - Options: `targets` (default 4, clamps 1..4), `size` (default 1024, clamps 64..4096)
+- `gl41-texarray` (texture arrays + LOD/bias)
+  - Options: `instances` (default 4096), `layers` (default 64), `tex-size` (default 64), `bias` (default 0.75)
+- `gl41-streaming-sync` (streaming buffer updates + sync objects)
+  - Options: `bytes` (default 4194304)
+- `gl41-geometry` (geometry shader amplification)
+  - Options: `points` (default 65536), `size` (default 0.012)
+
+Examples:
+
+```sh
+glmark2-macos --benchmark gl41-pipeline:grid=12
+glmark2-macos --benchmark gl41-mrt:targets=4:size=2048
+glmark2-macos --benchmark gl41-texarray:layers=128:tex-size=128:bias=1.0
+glmark2-macos --benchmark gl41-streaming-sync:bytes=16777216
+```
+
 ## Build: XQuartz/GLX backend (optional)
 
 This path uses X11/GLX and requires XQuartz.

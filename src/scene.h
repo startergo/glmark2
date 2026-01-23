@@ -648,4 +648,120 @@ public:
     SceneClear(Canvas &pCanvas);
 };
 
+#if GLMARK2_USE_MACOS
+struct SceneGL41InstancingPrivate;
+class SceneGL41Instancing : public Scene
+{
+public:
+    SceneGL41Instancing(Canvas &pCanvas);
+    ~SceneGL41Instancing() override;
+
+    void draw() override;
+    bool supported(bool show_errors) override;
+
+protected:
+    bool load() override;
+    void unload() override;
+    bool setup() override;
+
+private:
+    SceneGL41InstancingPrivate *priv_;
+};
+
+struct SceneGL41PipelinePrivate;
+class SceneGL41Pipeline : public Scene
+{
+public:
+    SceneGL41Pipeline(Canvas &pCanvas);
+    ~SceneGL41Pipeline() override;
+
+    void draw() override;
+    bool supported(bool show_errors) override;
+
+protected:
+    bool load() override;
+    void unload() override;
+    bool setup() override;
+
+private:
+    SceneGL41PipelinePrivate *priv_;
+};
+
+struct SceneGL41MRTPrivate;
+class SceneGL41MRT : public Scene
+{
+public:
+    SceneGL41MRT(Canvas &pCanvas);
+    ~SceneGL41MRT() override;
+
+    void draw() override;
+    bool supported(bool show_errors) override;
+
+protected:
+    bool load() override;
+    void unload() override;
+    bool setup() override;
+
+private:
+    SceneGL41MRTPrivate *priv_;
+};
+
+struct SceneGL41TexArrayPrivate;
+class SceneGL41TexArray : public Scene
+{
+public:
+    SceneGL41TexArray(Canvas &pCanvas);
+    ~SceneGL41TexArray() override;
+
+    void draw() override;
+    bool supported(bool show_errors) override;
+
+protected:
+    bool load() override;
+    void unload() override;
+    bool setup() override;
+
+private:
+    SceneGL41TexArrayPrivate *priv_;
+};
+
+struct SceneGL41StreamingSyncPrivate;
+class SceneGL41StreamingSync : public Scene
+{
+public:
+    SceneGL41StreamingSync(Canvas &pCanvas);
+    ~SceneGL41StreamingSync() override;
+
+    void draw() override;
+    bool supported(bool show_errors) override;
+
+protected:
+    bool load() override;
+    void unload() override;
+    bool setup() override;
+
+private:
+    SceneGL41StreamingSyncPrivate *priv_;
+};
+
+struct SceneGL41GeometryPrivate;
+class SceneGL41Geometry : public Scene
+{
+public:
+    SceneGL41Geometry(Canvas &pCanvas);
+    ~SceneGL41Geometry() override;
+
+    void draw() override;
+    bool supported(bool show_errors) override;
+
+protected:
+    bool load() override;
+    void unload() override;
+    bool setup() override;
+
+private:
+    SceneGL41GeometryPrivate *priv_;
+};
+#endif
+
 #endif

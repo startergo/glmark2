@@ -63,6 +63,10 @@ common_sources = [
     'texture.cpp'
 ]
 
+if need_macos
+    common_sources += 'scene-gl41.cpp'
+endif
+
 libmatrix_headers_dep = declare_dependency(
     include_directories: include_directories('libmatrix'),
     compile_args: ['-DUSE_EXCEPTIONS'],
@@ -243,6 +247,11 @@ else
     wsi_macos_dep = declare_dependency()
 endif
 
+macos_common_args = []
+if need_macos
+    macos_common_args = ['-DGLMARK2_USE_MACOS']
+endif
+
 if need_gl
     gl_gl_lib = static_library(
         'gl-gl',
@@ -259,6 +268,7 @@ if need_gl
         'common-gl',
         common_sources,
         dependencies: [gl_gl_dep, common_deps],
+        cpp_args: macos_common_args,
         include_directories: [
             include_directories('scene-ideas'),
             include_directories('scene-terrain'),
@@ -289,6 +299,7 @@ if need_glesv2
         'common-glesv2',
         common_sources,
         dependencies: [gl_glesv2_dep, common_deps],
+        cpp_args: macos_common_args,
         include_directories: [
             include_directories('scene-ideas'),
             include_directories('scene-terrain'),

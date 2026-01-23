@@ -78,6 +78,15 @@ private:
         scenes_.push_back(new SceneRefract(canvas));
         scenes_.push_back(new SceneClear(canvas));
 
+    #if GLMARK2_USE_MACOS
+        scenes_.push_back(new SceneGL41Instancing(canvas));
+        scenes_.push_back(new SceneGL41Pipeline(canvas));
+        scenes_.push_back(new SceneGL41MRT(canvas));
+        scenes_.push_back(new SceneGL41TexArray(canvas));
+        scenes_.push_back(new SceneGL41StreamingSync(canvas));
+        scenes_.push_back(new SceneGL41Geometry(canvas));
+    #endif
+
     }
 };
 #endif // GLMARK2_SCENE_COLLECTION_H_

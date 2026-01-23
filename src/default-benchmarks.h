@@ -74,6 +74,16 @@ private:
         benchmarks.push_back("loop:vertex-steps=5:fragment-steps=5:fragment-loop=false");
         benchmarks.push_back("loop:vertex-steps=5:fragment-steps=5:fragment-uniform=false");
         benchmarks.push_back("loop:vertex-steps=5:fragment-steps=5:fragment-uniform=true");
+
+    #if GLMARK2_USE_MACOS
+        // macOS-only: GL 3.2+ / 4.1 feature exercises (enabled by default in glmark2-macos).
+        benchmarks.push_back("gl41-instancing");
+        benchmarks.push_back("gl41-pipeline");
+        benchmarks.push_back("gl41-mrt");
+        benchmarks.push_back("gl41-texarray");
+        benchmarks.push_back("gl41-streaming-sync");
+        benchmarks.push_back("gl41-geometry");
+    #endif
     }
 };
 
