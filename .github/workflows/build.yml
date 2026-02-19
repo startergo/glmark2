@@ -226,29 +226,11 @@ jobs:
         cp build/src/glmark2*.exe artifacts/windows-mingw-arm64/ 2>/dev/null || true
     - name: Copy runtime DLLs
       run: |
-        TOOLCHAIN_BIN="$(dirname "$(command -v aarch64-w64-mingw32-gcc)")"
-        TOOLCHAIN_ROOT="${TOOLCHAIN_BIN%/bin}"
-
-        aarch64-w64-mingw32-objdump -p artifacts/windows-mingw-arm64/glmark2-win32.exe \
-          artifacts/windows-mingw-arm64/glmark2-es2-win32.exe \
-          | awk -F': ' '/DLL Name:/{print $2}' \
-          | sort -u > /tmp/glmark2-arm64-dlls.txt
-
-        while IFS= read -r dll; do
-          [ -z "$dll" ] && continue
-          if [ -f "$TOOLCHAIN_BIN/$dll" ]; then
-            cp "$TOOLCHAIN_BIN/$dll" artifacts/windows-mingw-arm64/
-            continue
-          fi
-          DLL_PATH="$(find "$TOOLCHAIN_ROOT" -type f -iname "$dll" | head -n1)"
-          if [ -n "$DLL_PATH" ]; then
-            cp "$DLL_PATH" artifacts/windows-mingw-arm64/
-          else
-            echo "Skipping system DLL: $dll"
-          fi
-        done < /tmp/glmark2-arm64-dlls.txt
-
-        ls -1 artifacts/windows-mingw-arm64/*.dll
+        LLVM_BIN="$PWD/llvm-mingw-20240619-ucrt-ubuntu-20.04-x86_64/aarch64-w64-mingw32/bin"
+        cp "$LLVM_BIN/libc++.dll" artifacts/windows-mingw-arm64/
+        cp "$LLVM_BIN/libunwind.dll" artifacts/windows-mingw-arm64/
+        cp "$LLVM_BIN/libc++.dll" build/src/
+        cp "$LLVM_BIN/libunwind.dll" build/src/
     - name: Package
       run: |
         cd artifacts
