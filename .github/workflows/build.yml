@@ -224,6 +224,10 @@ jobs:
         mkdir -p artifacts/windows-mingw-arm64
         cp -r /tmp/glmark2-install/* artifacts/windows-mingw-arm64/
         cp build/src/glmark2*.exe artifacts/windows-mingw-arm64/ 2>/dev/null || true
+    - name: Copy runtime DLLs
+      run: |
+        cp $(aarch64-w64-mingw32-gcc --print-file-name=libc++.dll) artifacts/windows-mingw-arm64/
+        cp $(aarch64-w64-mingw32-gcc --print-file-name=libunwind.dll) artifacts/windows-mingw-arm64/
     - name: Package
       run: |
         cd artifacts
