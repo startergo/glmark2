@@ -228,19 +228,27 @@ jobs:
       run: |
         TOOLCHAIN_BIN="$(dirname "$(command -v aarch64-w64-mingw32-gcc)")"
         TOOLCHAIN_ROOT="${TOOLCHAIN_BIN%/bin}"
-        for dll in libc++.dll libunwind.dll; do
+
+        aarch64-w64-mingw32-objdump -p artifacts/windows-mingw-arm64/glmark2-win32.exe \
+          artifacts/windows-mingw-arm64/glmark2-es2-win32.exe \
+          | awk -F': ' '/DLL Name:/{print $2}' \
+          | sort -u > /tmp/glmark2-arm64-dlls.txt
+
+        while IFS= read -r dll; do
+          [ -z "$dll" ] && continue
           if [ -f "$TOOLCHAIN_BIN/$dll" ]; then
             cp "$TOOLCHAIN_BIN/$dll" artifacts/windows-mingw-arm64/
-          else
-            DLL_PATH="$(find "$TOOLCHAIN_ROOT" -type f -name "$dll" | head -n1)"
-            if [ -n "$DLL_PATH" ]; then
-              cp "$DLL_PATH" artifacts/windows-mingw-arm64/
-            else
-              echo "Missing runtime DLL: $dll" >&2
-              exit 1
-            fi
+            continue
           fi
-        done
+          DLL_PATH="$(find "$TOOLCHAIN_ROOT" -type f -iname "$dll" | head -n1)"
+          if [ -n "$DLL_PATH" ]; then
+            cp "$DLL_PATH" artifacts/windows-mingw-arm64/
+          else
+            echo "Skipping system DLL: $dll"
+          fi
+        done < /tmp/glmark2-arm64-dlls.txt
+
+        ls -1 artifacts/windows-mingw-arm64/*.dll
     - name: Package
       run: |
         cd artifacts
