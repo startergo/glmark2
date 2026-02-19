@@ -200,6 +200,45 @@ jobs:
         name: glmark2-windows-mingw
         path: artifacts/windows-mingw/
 
+  build-meson-win32-mingw-arm64:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install meson wget xz-utils
+    - name: Setup llvm-mingw
+      run: |
+        wget https://github.com/mstorsjo/llvm-mingw/releases/download/20240619/llvm-mingw-20240619-ucrt-ubuntu-20.04-x86_64.tar.xz
+        tar -xf llvm-mingw-20240619-ucrt-ubuntu-20.04-x86_64.tar.xz
+        echo "$PWD/llvm-mingw-20240619-ucrt-ubuntu-20.04-x86_64/bin" >> $GITHUB_PATH
+    - name: Setup
+      run: meson setup --cross-file .github/aarch64-w64-mingw32.txt build -Dflavors=win32-gl,win32-glesv2
+    - name: Build
+      run: ninja -C build
+    - name: Install
+      run: DESTDIR=/tmp/glmark2-install ninja -C build install
+    - name: Create artifact directory
+      run: |
+        mkdir -p artifacts/windows-mingw-arm64
+        cp -r /tmp/glmark2-install/* artifacts/windows-mingw-arm64/
+        cp build/src/glmark2*.exe artifacts/windows-mingw-arm64/ 2>/dev/null || true
+    - name: Package
+      run: |
+        cd artifacts
+        zip -r ../glmark2-windows-mingw-arm64.zip windows-mingw-arm64/
+    - name: Upload to release
+      if: github.event_name == 'workflow_dispatch'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: glmark2-windows-mingw-arm64.zip
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: glmark2-windows-mingw-arm64
+        path: artifacts/windows-mingw-arm64/
+
   build-meson-win32-msvc:
     runs-on: windows-2022
     steps:
@@ -329,7 +368,7 @@ jobs:
 
   release:
     if: github.event_name == 'workflow_dispatch'
-    needs: [build-meson, build-meson-only-drm, build-meson-only-wayland, build-meson-only-x11, build-meson-only-null, build-meson-only-dispmanx, build-meson-win32-mingw, build-meson-win32-msvc, build-meson-macos-arm64, build-meson-macos-x86_64]
+    needs: [build-meson, build-meson-only-drm, build-meson-only-wayland, build-meson-only-x11, build-meson-only-null, build-meson-only-dispmanx, build-meson-win32-mingw, build-meson-win32-mingw-arm64, build-meson-win32-msvc, build-meson-macos-arm64, build-meson-macos-x86_64]
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
@@ -385,6 +424,7 @@ jobs:
           
           ### Windows Builds
           - **glmark2-windows-mingw** - Windows build using MinGW cross-compilation
+          - **glmark2-windows-mingw-arm64** - Windows ARM64 build using llvm-mingw cross-compilation
           - **glmark2-windows-msvc** - Windows build using native MSVC
           
           ### macOS Builds
