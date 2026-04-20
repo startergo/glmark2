@@ -414,6 +414,10 @@ jobs:
         TAG="release-${TIMESTAMP}"
         echo "tag=${TAG}" >> $GITHUB_OUTPUT
         echo "Generated tag: ${TAG}"
+    - name: Generate release metadata
+      id: meta
+      run: |
+        echo "build_date=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
@@ -466,7 +470,7 @@ jobs:
           
           Each Linux/Windows archive contains both `.tar.gz` and `.zip` formats for convenience.
           
-          **Build Date:** $(date +"%Y-%m-%d %H:%M:%S UTC")
+          **Build Date:** ${{ steps.meta.outputs.build_date }}
           **Commit:** ${{ github.sha }}
         draft: false
         prerelease: false
