@@ -194,6 +194,14 @@ jobs:
         mkdir -p artifacts/windows-mingw
         cp -r /tmp/glmark2-install/* artifacts/windows-mingw/
         cp build/src/glmark2*.exe artifacts/windows-mingw/ 2>/dev/null || true
+    - name: Copy runtime DLLs (x86_64 mingw)
+      run: |
+        DLL_STD="$(x86_64-w64-mingw32-g++ -print-file-name=libstdc++-6.dll)"
+        DLL_GCC="$(x86_64-w64-mingw32-gcc -print-file-name=libgcc_s_seh-1.dll)"
+        DLL_PTH="$(x86_64-w64-mingw32-g++ -print-file-name=libwinpthread-1.dll)"
+        cp "$DLL_STD" artifacts/windows-mingw/
+        cp "$DLL_GCC" artifacts/windows-mingw/
+        cp "$DLL_PTH" artifacts/windows-mingw/
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
