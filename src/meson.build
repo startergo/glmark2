@@ -233,8 +233,22 @@ if need_macos
         compile_args: ['-DGLMARK2_USE_MACOS'],
         )
 
+    wsi_macos_lib = static_library(
+        'gl-state-macos',
+        ['gl-state-macos.mm'],
+        dependencies: apple_frameworks_dep,
+        include_directories: [
+            include_directories('glad/include'),
+            include_directories('libmatrix'),
+            ],
+        objcpp_args: ['-DGLMARK2_USE_GL'],
+        )
+
+    # Link via a static library so executables keep a pure C++ link language
+    # (important for cross builds where only cpp link args carry the target
+    # triple; ObjC++ machine-file link args are not honored by meson).
     wsi_macos_dep = declare_dependency(
-        sources: ['gl-state-macos.mm'],
+        link_with: wsi_macos_lib,
         dependencies: apple_frameworks_dep,
         include_directories: [
             include_directories('glad/include'),

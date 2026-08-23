@@ -3,4 +3,5 @@
 .lock-waf*
 waflib/**/*.pyc
 build/
+build-106/
 .vscode/

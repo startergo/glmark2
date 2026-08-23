@@ -235,7 +235,8 @@ Util::get_timestamp_us()
 std::istream *
 Util::get_resource(const std::filesystem::path &path)
 {
-    std::ifstream *ifs = new std::ifstream(path, std::ios::binary);
+    /* libc++ 5 (10.6 cross builds) has no path-taking fstream ctor */
+    std::ifstream *ifs = new std::ifstream(path.string().c_str(), std::ios::binary);
 
     return static_cast<std::istream *>(ifs);
 }

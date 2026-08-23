@@ -1,0 +1,18 @@
+/*
+ * <filesystem> wrapper for the libc++ 5.0.1 cross-compat bundle.
+ *
+ * libc++ 5.0.1 (leopard-webkit-build) predates C++17 <filesystem>; the
+ * equivalent functionality lives in the header-only
+ * <experimental/filesystem>. glmark2's sources include <filesystem> and use
+ * std::filesystem directly, so redirect the include and alias the namespace.
+ *
+ * This directory must precede the libc++ include directory (-isystem) on the
+ * compiler command line; the cross file takes care of the ordering.
+ */
+#pragma once
+
+#include <experimental/filesystem>
+
+namespace std {
+namespace filesystem = ::std::experimental::filesystem;
+}

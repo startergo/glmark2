@@ -1,0 +1,47 @@
+# Meson cross file for x86_64-apple-macos10.6 glmark2 builds.
+#
+# PORTABILITY: /Users/macbookpro/glmark2 below is a placeholder for the absolute path to
+# the glmark2 repo root on your machine. Before running `meson setup`,
+# replace it. From the repo root:
+#
+#   sed -i.bak "s|/Users/macbookpro/glmark2|$(pwd)|" cross-compat/glmark2-cross-10.6.txt
+#
+# Other paths that may need adjustment:
+#   - /Applications/Xcode.app/.../MacOSX10.6.sdk  (10.6 SDK location)
+#   - /opt/homebrew/opt/llvm/bin/llvm-ar          (Homebrew LLVM bin tools)
+#
+# Notes:
+#   - libc++ 5.0.1 (leopard-webkit-build) is linked STATICALLY into the
+#     glmark2-macos executable (libc++.a + libc++abi.a). 10.6 has no
+#     system libc++, and an executable can carry its own copy, so unlike
+#     the Mesa-VirGL dylib build no -reexport_library / dylib bundling is
+#     needed.
+#   - <filesystem> resolves to cross-compat/compat-headers/filesystem,
+#     which redirects to libc++ 5's header-only <experimental/filesystem>.
+#   - clock_gettime_compat.o provides clock_gettime (libc++ 5's
+#     steady_clock calls it), strndup, strnlen and open_memstream.
+
+[binaries]
+c = 'clang'
+cpp = 'clang++'
+objc = 'clang'
+objcpp = 'clang++'
+ar = '/opt/homebrew/opt/llvm/bin/llvm-ar'
+ranlib = '/opt/homebrew/opt/llvm/bin/llvm-ranlib'
+
+[built-in options]
+c_args = ['-target', 'x86_64-apple-macos10.6', '-arch', 'x86_64', '-isysroot', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.6.sdk', '-I/Users/macbookpro/glmark2/cross-compat/compat-headers', '-fallow-unsupported']
+cpp_args = ['-target', 'x86_64-apple-macos10.6', '-arch', 'x86_64', '-isysroot', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.6.sdk', '-I/Users/macbookpro/glmark2/cross-compat/compat-headers', '-fallow-unsupported', '-femulated-tls', '-nostdinc++', '-isystem', '/Users/macbookpro/glmark2/cross-compat/libcxx/include', '-include', '/Users/macbookpro/glmark2/cross-compat/math_compat.h']
+objc_args = ['-target', 'x86_64-apple-macos10.6', '-arch', 'x86_64', '-isysroot', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.6.sdk', '-fallow-unsupported']
+objcpp_args = ['-target', 'x86_64-apple-macos10.6', '-arch', 'x86_64', '-isysroot', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.6.sdk', '-I/Users/macbookpro/glmark2/cross-compat/compat-headers', '-fallow-unsupported', '-femulated-tls', '-nostdinc++', '-isystem', '/Users/macbookpro/glmark2/cross-compat/libcxx/include', '-include', '/Users/macbookpro/glmark2/cross-compat/math_compat.h']
+objcpp_std = 'c++17'
+c_link_args = ['-target', 'x86_64-apple-macos10.6', '-isysroot', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.6.sdk', '-fallow-unsupported', '-L/Users/macbookpro/glmark2/cross-compat/libcxx/lib', '/Users/macbookpro/glmark2/cross-compat/libcxx/lib/libc++.a', '/Users/macbookpro/glmark2/cross-compat/libcxx/lib/libc++abi.a', '-Wl,-force_load,/Users/macbookpro/glmark2/cross-compat/libcxx-experimental/libc++experimental.a', '/Users/macbookpro/glmark2/cross-compat/clock_gettime_compat.o']
+cpp_link_args = ['-target', 'x86_64-apple-macos10.6', '-isysroot', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.6.sdk', '-fallow-unsupported', '-L/Users/macbookpro/glmark2/cross-compat/libcxx/lib', '/Users/macbookpro/glmark2/cross-compat/libcxx/lib/libc++.a', '/Users/macbookpro/glmark2/cross-compat/libcxx/lib/libc++abi.a', '-Wl,-force_load,/Users/macbookpro/glmark2/cross-compat/libcxx-experimental/libc++experimental.a', '/Users/macbookpro/glmark2/cross-compat/clock_gettime_compat.o']
+objc_link_args = ['-target', 'x86_64-apple-macos10.6', '-isysroot', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.6.sdk', '-fallow-unsupported', '-L/Users/macbookpro/glmark2/cross-compat/libcxx/lib', '/Users/macbookpro/glmark2/cross-compat/clock_gettime_compat.o']
+objcpp_link_args = ['-target', 'x86_64-apple-macos10.6', '-isysroot', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.6.sdk', '-fallow-unsupported', '-L/Users/macbookpro/glmark2/cross-compat/libcxx/lib', '/Users/macbookpro/glmark2/cross-compat/libcxx/lib/libc++.a', '/Users/macbookpro/glmark2/cross-compat/libcxx/lib/libc++abi.a', '-Wl,-force_load,/Users/macbookpro/glmark2/cross-compat/libcxx-experimental/libc++experimental.a', '/Users/macbookpro/glmark2/cross-compat/clock_gettime_compat.o']
+
+[host_machine]
+system = 'darwin'
+cpu_family = 'x86_64'
+cpu = 'x86_64'
+endian = 'little'

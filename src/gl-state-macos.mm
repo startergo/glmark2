@@ -6,6 +6,16 @@
 
 #import <Cocoa/Cocoa.h>
 
+// Compatibility with the 10.6 SDK:
+//  - NSOpenGLPFAOpenGLProfile / NSOpenGLProfileVersion* are 10.7+; on 10.6
+//    only the legacy profile exists, so no profile attribute is requested.
+//  - The 10.6 ObjC runtime has no objc_autoreleasePoolPush/Pop (10.7+), so
+//    @autoreleasepool would produce unloadable symbols; NSAutoreleasePool is
+//    used instead throughout this file.
+#ifndef __MAC_OS_X_VERSION_MAX_ALLOWED
+#define __MAC_OS_X_VERSION_MAX_ALLOWED 1060
+#endif
+
 struct GLStateMacOS::Impl
 {
     NSOpenGLPixelFormat* pixel_format = nil;
@@ -114,67 +124,70 @@ bool GLStateMacOS::valid()
     if (!ensure_context())
         return false;
 
-    @autoreleasepool {
-        [impl_->context makeCurrentContext];
+    NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+    [impl_->context makeCurrentContext];
 
-        if (gladLoadGLUserPtr(load_proc, this) == 0) {
-            Log::error("Failed to load GL entry points\n");
-            return false;
-        }
-
-        // Core profile requires a VAO bound for vertex attribute arrays.
-        using PFNGLGENVERTEXARRAYSPROC = void (*)(GLsizei, GLuint*);
-        using PFNGLBINDVERTEXARRAYPROC = void (*)(GLuint);
-        auto gen_vaos = reinterpret_cast<PFNGLGENVERTEXARRAYSPROC>(load_proc(this, "glGenVertexArrays"));
-        auto bind_vao = reinterpret_cast<PFNGLBINDVERTEXARRAYPROC>(load_proc(this, "glBindVertexArray"));
-        if (gen_vaos && bind_vao && impl_->vao == 0) {
-            gen_vaos(1, &impl_->vao);
-            bind_vao(impl_->vao);
-        }
-
-        if (!init_gl_extensions())
-            return false;
-
-        // Set swap interval according to swap mode
-        GLint interval = (Options::swap_mode == Options::SwapModeFIFO) ? 1 : 0;
-        [impl_->context setValues:&interval forParameter:NSOpenGLCPSwapInterval];
-
-        update_visual_config();
-        return true;
+    if (gladLoadGLUserPtr(load_proc, this) == 0) {
+        Log::error("Failed to load GL entry points\n");
+        [pool drain];
+        return false;
     }
+
+    // Core profile requires a VAO bound for vertex attribute arrays.
+    using PFNGLGENVERTEXARRAYSPROC = void (*)(GLsizei, GLuint*);
+    using PFNGLBINDVERTEXARRAYPROC = void (*)(GLuint);
+    auto gen_vaos = reinterpret_cast<PFNGLGENVERTEXARRAYSPROC>(load_proc(this, "glGenVertexArrays"));
+    auto bind_vao = reinterpret_cast<PFNGLBINDVERTEXARRAYPROC>(load_proc(this, "glBindVertexArray"));
+    if (gen_vaos && bind_vao && impl_->vao == 0) {
+        gen_vaos(1, &impl_->vao);
+        bind_vao(impl_->vao);
+    }
+
+    if (!init_gl_extensions()) {
+        [pool drain];
+        return false;
+    }
+
+    // Set swap interval according to swap mode
+    GLint interval = (Options::swap_mode == Options::SwapModeFIFO) ? 1 : 0;
+    [impl_->context setValues:&interval forParameter:NSOpenGLCPSwapInterval];
+
+    update_visual_config();
+    [pool drain];
+    return true;
 }
 
 bool GLStateMacOS::reset()
 {
-    @autoreleasepool {
-        if (impl_ && impl_->vao != 0) {
-            using PFNGLDELETEVERTEXARRAYSPROC = void (*)(GLsizei, const GLuint*);
-            auto del_vaos = reinterpret_cast<PFNGLDELETEVERTEXARRAYSPROC>(load_proc(this, "glDeleteVertexArrays"));
-            if (del_vaos)
-                del_vaos(1, &impl_->vao);
-            impl_->vao = 0;
-        }
-        if (impl_ && impl_->context) {
-            [NSOpenGLContext clearCurrentContext];
-            [impl_->context release];
-            impl_->context = nil;
-        }
-        if (impl_ && impl_->pixel_format) {
-            [impl_->pixel_format release];
-            impl_->pixel_format = nil;
-        }
+    NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+    if (impl_ && impl_->vao != 0) {
+        using PFNGLDELETEVERTEXARRAYSPROC = void (*)(GLsizei, const GLuint*);
+        auto del_vaos = reinterpret_cast<PFNGLDELETEVERTEXARRAYSPROC>(load_proc(this, "glDeleteVertexArrays"));
+        if (del_vaos)
+            del_vaos(1, &impl_->vao);
+        impl_->vao = 0;
     }
+    if (impl_ && impl_->context) {
+        [NSOpenGLContext clearCurrentContext];
+        [impl_->context release];
+        impl_->context = nil;
+    }
+    if (impl_ && impl_->pixel_format) {
+        [impl_->pixel_format release];
+        impl_->pixel_format = nil;
+    }
+    [pool drain];
 
     return true;
 }
 
 void GLStateMacOS::swap()
 {
-    @autoreleasepool {
-        if (impl_->context) {
-            [impl_->context flushBuffer];
-        }
+    NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+    if (impl_->context) {
+        [impl_->context flushBuffer];
     }
+    [pool drain];
 }
 
 bool GLStateMacOS::gotNativeConfig(intptr_t& vid, std::vector<uint64_t>& mods)
@@ -224,103 +237,113 @@ bool GLStateMacOS::ensure_context()
         return false;
     }
 
-    @autoreleasepool {
-        NSMutableArray<NSNumber*>* attrs = [NSMutableArray array];
+    NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+    /* No lightweight generics in the 10.6 SDK's NSArray declarations. */
+    NSMutableArray* attrs = [NSMutableArray array];
 
-        const bool want_legacy = (Options::macos_gl_profile == Options::MacOSGLProfileLegacy);
+    const bool want_legacy = (Options::macos_gl_profile == Options::MacOSGLProfileLegacy);
 
-        [attrs addObject:@(NSOpenGLPFAOpenGLProfile)];
-        if (want_legacy) {
-            [attrs addObject:@(NSOpenGLProfileVersionLegacy)];
-            impl_->core_profile_requested = false;
-        } else {
-            [attrs addObject:@(NSOpenGLProfileVersion3_2Core)];
-            impl_->core_profile_requested = true;
-        }
-
-        [attrs addObject:@(NSOpenGLPFAAccelerated)];
-        [attrs addObject:@(NSOpenGLPFADoubleBuffer)];
-
-        // Color/depth/stencil preferences
-        if (requested_visual_config_.buffer > 0) {
-            [attrs addObject:@(NSOpenGLPFAColorSize)];
-            [attrs addObject:@(requested_visual_config_.buffer)];
-        }
-        if (requested_visual_config_.alpha > 0) {
-            [attrs addObject:@(NSOpenGLPFAAlphaSize)];
-            [attrs addObject:@(requested_visual_config_.alpha)];
-        }
-        if (requested_visual_config_.depth > 0) {
-            [attrs addObject:@(NSOpenGLPFADepthSize)];
-            [attrs addObject:@(requested_visual_config_.depth)];
-        }
-        if (requested_visual_config_.stencil >= 0) {
-            [attrs addObject:@(NSOpenGLPFAStencilSize)];
-            [attrs addObject:@(requested_visual_config_.stencil)];
-        }
-
-        if (requested_visual_config_.samples > 0) {
-            [attrs addObject:@(NSOpenGLPFAMultisample)];
-            [attrs addObject:@(NSOpenGLPFASampleBuffers)];
-            [attrs addObject:@(1)];
-            [attrs addObject:@(NSOpenGLPFASamples)];
-            [attrs addObject:@(requested_visual_config_.samples)];
-        }
-
-        NSOpenGLPixelFormatAttribute c_attrs[64];
-        const NSUInteger maxAttrs = sizeof(c_attrs) / sizeof(c_attrs[0]);
-        NSUInteger idx = 0;
-        for (NSNumber* n in attrs) {
-            // Reserve space for the terminating 0 in c_attrs.
-            if (idx >= maxAttrs - 1)
-                break;
-            c_attrs[idx++] = (NSOpenGLPixelFormatAttribute)[n intValue];
-        }
-        c_attrs[idx] = 0;
-
-        impl_->pixel_format = [[NSOpenGLPixelFormat alloc] initWithAttributes:c_attrs];
-
-        if (!impl_->pixel_format && !want_legacy) {
-            // Fallback: try without explicit profile request
-            Log::warning("macOS core profile request failed; falling back to legacy context\n");
-
-            NSOpenGLPixelFormatAttribute fallback_attrs[8] = {
-                NSOpenGLPFAAccelerated,
-                NSOpenGLPFADoubleBuffer,
-                0,
-            };
-            impl_->pixel_format = [[NSOpenGLPixelFormat alloc] initWithAttributes:fallback_attrs];
-            impl_->core_profile_requested = false;
-        }
-
-        if (!impl_->pixel_format) {
-            Log::error("Failed to create NSOpenGLPixelFormat\n");
-            return false;
-        }
-
-        impl_->context = [[NSOpenGLContext alloc] initWithFormat:impl_->pixel_format shareContext:nil];
-        if (!impl_->context) {
-            Log::error("Failed to create NSOpenGLContext\n");
-            return false;
-        }
-
-        NSView* view = (NSView*)view_;
-        [impl_->context setView:view];
-        [impl_->context update];
-        [impl_->context makeCurrentContext];
-
-        return true;
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
+    [attrs addObject:@(NSOpenGLPFAOpenGLProfile)];
+    if (want_legacy) {
+        [attrs addObject:@(NSOpenGLProfileVersionLegacy)];
+        impl_->core_profile_requested = false;
+    } else {
+        [attrs addObject:@(NSOpenGLProfileVersion3_2Core)];
+        impl_->core_profile_requested = true;
     }
+#else
+    /* 10.6 has only the legacy profile; the profile attribute is 10.7+. */
+    (void)want_legacy;
+    impl_->core_profile_requested = false;
+#endif
+
+    [attrs addObject:@(NSOpenGLPFAAccelerated)];
+    [attrs addObject:@(NSOpenGLPFADoubleBuffer)];
+
+    // Color/depth/stencil preferences
+    if (requested_visual_config_.buffer > 0) {
+        [attrs addObject:@(NSOpenGLPFAColorSize)];
+        [attrs addObject:@(requested_visual_config_.buffer)];
+    }
+    if (requested_visual_config_.alpha > 0) {
+        [attrs addObject:@(NSOpenGLPFAAlphaSize)];
+        [attrs addObject:@(requested_visual_config_.alpha)];
+    }
+    if (requested_visual_config_.depth > 0) {
+        [attrs addObject:@(NSOpenGLPFADepthSize)];
+        [attrs addObject:@(requested_visual_config_.depth)];
+    }
+    if (requested_visual_config_.stencil >= 0) {
+        [attrs addObject:@(NSOpenGLPFAStencilSize)];
+        [attrs addObject:@(requested_visual_config_.stencil)];
+    }
+
+    if (requested_visual_config_.samples > 0) {
+        [attrs addObject:@(NSOpenGLPFAMultisample)];
+        [attrs addObject:@(NSOpenGLPFASampleBuffers)];
+        [attrs addObject:@(1)];
+        [attrs addObject:@(NSOpenGLPFASamples)];
+        [attrs addObject:@(requested_visual_config_.samples)];
+    }
+
+    NSOpenGLPixelFormatAttribute c_attrs[64];
+    const NSUInteger maxAttrs = sizeof(c_attrs) / sizeof(c_attrs[0]);
+    NSUInteger idx = 0;
+    for (NSNumber* n in attrs) {
+        // Reserve space for the terminating 0 in c_attrs.
+        if (idx >= maxAttrs - 1)
+            break;
+        c_attrs[idx++] = (NSOpenGLPixelFormatAttribute)[n intValue];
+    }
+    c_attrs[idx] = 0;
+
+    impl_->pixel_format = [[NSOpenGLPixelFormat alloc] initWithAttributes:c_attrs];
+
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
+    if (!impl_->pixel_format && !want_legacy) {
+        // Fallback: try without explicit profile request
+        Log::warning("macOS core profile request failed; falling back to legacy context\n");
+
+        NSOpenGLPixelFormatAttribute fallback_attrs[8] = {
+            NSOpenGLPFAAccelerated,
+            NSOpenGLPFADoubleBuffer,
+            0,
+        };
+        impl_->pixel_format = [[NSOpenGLPixelFormat alloc] initWithAttributes:fallback_attrs];
+        impl_->core_profile_requested = false;
+    }
+#endif
+
+    if (!impl_->pixel_format) {
+        Log::error("Failed to create NSOpenGLPixelFormat\n");
+        [pool drain];
+        return false;
+    }
+
+    impl_->context = [[NSOpenGLContext alloc] initWithFormat:impl_->pixel_format shareContext:nil];
+    if (!impl_->context) {
+        Log::error("Failed to create NSOpenGLContext\n");
+        [pool drain];
+        return false;
+    }
+
+    NSView* view = (NSView*)view_;
+    [impl_->context setView:view];
+    [impl_->context update];
+    [impl_->context makeCurrentContext];
+
+    [pool drain];
+    return true;
 }
 
 void GLStateMacOS::update_visual_config()
 {
     active_visual_config_ = GLVisualConfig{};
 
-    @autoreleasepool {
-        if (!impl_->pixel_format)
-            return;
+    NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
 
+    if (impl_->pixel_format) {
         GLint value = 0;
         [impl_->pixel_format getValues:&value forAttribute:NSOpenGLPFAColorSize forVirtualScreen:0];
         active_visual_config_.buffer = value;
@@ -336,12 +359,13 @@ void GLStateMacOS::update_visual_config()
 
         [impl_->pixel_format getValues:&value forAttribute:NSOpenGLPFASamples forVirtualScreen:0];
         active_visual_config_.samples = value;
-
-        // Best-effort estimates for channel sizes
-        active_visual_config_.red = 8;
-        active_visual_config_.green = 8;
-        active_visual_config_.blue = 8;
-        if (active_visual_config_.alpha <= 0)
-            active_visual_config_.alpha = 0;
     }
+    [pool drain];
+
+    // Best-effort estimates for channel sizes
+    active_visual_config_.red = 8;
+    active_visual_config_.green = 8;
+    active_visual_config_.blue = 8;
+    if (active_visual_config_.alpha <= 0)
+        active_visual_config_.alpha = 0;
 }

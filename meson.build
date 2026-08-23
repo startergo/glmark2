@@ -137,8 +137,19 @@ if host_machine.system() == 'windows'
     libjpeg_dep = libjpeg_turbo_local_dep
     libpng_dep = libpng_local_dep
 else
-    libjpeg_dep = dependency('libjpeg')
-    libpng_dep = dependency('libpng')
+    if meson.is_cross_build() and host_machine.system() == 'darwin'
+        # Cross builds against the 10.6 SDK use the vendored static C libs;
+        # Homebrew's jpeg/png are built for modern deployment targets.
+        # zlib comes from the SDK (the vendored copy assumes Windows headers).
+        zlib_local_dep = cpp.find_library('z')
+        subdir('src/libpng')
+        subdir('src/libjpeg-turbo')
+        libjpeg_dep = libjpeg_turbo_local_dep
+        libpng_dep = libpng_local_dep
+    else
+        libjpeg_dep = dependency('libjpeg')
+        libpng_dep = dependency('libpng')
+    endif
 endif
 
 subdir('src')
