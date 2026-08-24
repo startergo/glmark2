@@ -16,6 +16,17 @@
 #define __MAC_OS_X_VERSION_MAX_ALLOWED 1060
 #endif
 
+/* True when building against the 10.6 SDK (the Snow Leopard cross-build
+ * target). On that stack the gld float's buffer and surface entry points
+ * are success-returning stubs over engine-owned state, which makes both
+ * glMapBuffer writes and context teardown unsafe; the guards below keep
+ * the benchmark stable there without affecting modern-SDK builds. */
+#if __MAC_OS_X_VERSION_MAX_ALLOWED < 1070
+#define GLMARK2_106_FLOAT_STACK 1
+#else
+#define GLMARK2_106_FLOAT_STACK 0
+#endif
+
 struct GLStateMacOS::Impl
 {
     NSOpenGLPixelFormat* pixel_format = nil;
@@ -51,6 +62,21 @@ bool GLStateMacOS::init_display(void* native_display, GLVisualConfig& config_pre
         Log::warning("Could not open OpenGL.framework for symbol loading; falling back to RTLD_DEFAULT\n");
     }
 
+#if GLMARK2_106_FLOAT_STACK
+    /* Destroying a GL context is unsafe on this stack: the teardown path
+     * frees GLEngine/GFXShared-owned allocations that are still live,
+     * surfacing as abort() in free() from gfxFreeTextureLevel/
+     * gleFreeTextureObject or as SIGBUS in gleVPEnable when the next
+     * context touches the recycled page (same allocation cluster in both
+     * crash reports). Keep a single context for the whole run, like
+     * --reuse-context, so no mid-run destroy ever happens. */
+    if (!Options::reuse_context) {
+        Log::warning("Forcing --reuse-context: per-scene context destroy"
+                     " is unsafe on this stack\n");
+        Options::reuse_context = true;
+    }
+#endif
+
     return true;
 }
 
@@ -70,7 +96,7 @@ bool GLStateMacOS::init_gl_extensions()
     // On macOS core profile the non-EXT symbols may be available even when
     // the EXT aliases aren't, so resolve both. Legacy drivers (e.g. 10.6
     // GL 2.1) may only implement buffer mapping via the ARB/EXT entry points.
-#if __MAC_OS_X_VERSION_MAX_ALLOWED < 1070
+#if GLMARK2_106_FLOAT_STACK
     /* The 10.6 software-GL stack (GLEngine over a gld float whose buffer
      * entry points are success-returning stubs over engine-owned storage)
      * hands out mappings that do not alias the buffer storage: writes land
@@ -187,6 +213,18 @@ bool GLStateMacOS::valid()
 
 bool GLStateMacOS::reset()
 {
+#if GLMARK2_106_FLOAT_STACK
+    /* Context teardown aborts or crashes on this stack (see
+     * init_display). With reuse forced, reset() only ever runs with a
+     * live context from the destructor, so deliberately leak the
+     * context and pixel format instead of destroying them; process exit
+     * reclaims everything and the run ends with a clean exit status. */
+    if (impl_ && (impl_->context || impl_->pixel_format)) {
+        Log::warning("Skipping GL context teardown on this stack"
+                     " (leaked by design; process exit reclaims it)\n");
+    }
+    return true;
+#else
     NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
     if (impl_ && impl_->context) {
         /* Make the context current so the GL cleanup below is issued to it
@@ -227,6 +265,7 @@ bool GLStateMacOS::reset()
     [pool drain];
 
     return true;
+#endif
 }
 
 void GLStateMacOS::swap()
