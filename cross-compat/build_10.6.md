@@ -49,6 +49,22 @@ Mechanical portability fixes; no behavioural change on modern macOS builds.
 C++17 is kept (not downgraded): libc++ 5 headers support it (proven by the
 Mesa-VirGL build) and `scene-gl41.cpp` needs the non-const `std::string::data()`.
 
+## Packaging
+
+The binary has no compiled-in resource fork — at runtime it reads the
+shaders, textures and models under `data/` (9.4 MB), resolved through
+`--data-path` (default baked in by the build script as the relative
+`data` directory). No installer is needed; ship a self-contained zip
+instead:
+
+    ./cross-compat/package-10.6.sh
+    # -> dist/glmark2-<commit>-macos-10.6-x86_64.zip (binary + data/ + README)
+
+Users unzip anywhere and run `./glmark2-macos` from the bundle root with
+no flags. The README bundled inside documents the stack safeguards
+(forced `--reuse-context`, disabled `glMapBuffer`, skipped exit
+teardown) and their console notices.
+
 ## Runtime notes
 
 - 10.6.8 caps at OpenGL 2.1. The macos-gl flavor defaults to a 3.2 core

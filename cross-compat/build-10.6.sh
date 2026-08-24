@@ -43,10 +43,12 @@ done
 
 # 3. Configure. NOTE: meson pins the cross file at first setup; if you edit
 #    cross-compat/glmark2-cross-10.6.txt you must wipe build-106 first.
+#    -Ddata-path=data bakes in a relative default so the binary runs
+#    without flags next to a copied data/ directory (see package-10.6.sh).
 rm -rf build-106
 meson setup build-106 \
   --cross-file cross-compat/glmark2-cross-10.6.txt \
-  -Dflavors=macos-gl -Dcpp_std=c++17 --buildtype release
+  -Dflavors=macos-gl -Dcpp_std=c++17 -Ddata-path=data --buildtype release
 
 # 4. Build.
 ninja -C build-106
@@ -55,5 +57,9 @@ echo
 echo "Built: build-106/src/glmark2-macos ($(file build-106/src/glmark2-macos | cut -d: -f2))"
 echo "Verify: otool -l build-106/src/glmark2-macos | grep -A2 LC_VERSION_MIN"
 echo
-echo "To run it needs the data files; e.g.:"
-echo "  ./build-106/src/glmark2-macos --data-path data -b build:duration=5"
+echo "The compiled-in data path is the relative 'data' directory; from the"
+echo "repo root it runs directly, e.g.:"
+echo "  ./build-106/src/glmark2-macos -b build:duration=5"
+echo
+echo "To ship it, package binary + data files into a zip:"
+echo "  ./cross-compat/package-10.6.sh"
