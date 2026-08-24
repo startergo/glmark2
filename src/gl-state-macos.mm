@@ -68,9 +68,19 @@ bool GLStateMacOS::init_gl_extensions()
 
     // glad in this tree is primarily set up around extension entry points.
     // On macOS core profile the non-EXT symbols may be available even when
-    // the EXT aliases aren't, so resolve both.
+    // the EXT aliases aren't, so resolve both. Legacy drivers (e.g. 10.6
+    // GL 2.1) may only implement buffer mapping via the ARB/EXT entry points.
     GLExtensions::MapBuffer = reinterpret_cast<decltype(GLExtensions::MapBuffer)>(load("glMapBuffer"));
+    if (!GLExtensions::MapBuffer)
+        GLExtensions::MapBuffer = reinterpret_cast<decltype(GLExtensions::MapBuffer)>(load("glMapBufferARB"));
+    if (!GLExtensions::MapBuffer)
+        GLExtensions::MapBuffer = reinterpret_cast<decltype(GLExtensions::MapBuffer)>(load("glMapBufferEXT"));
+
     GLExtensions::UnmapBuffer = reinterpret_cast<decltype(GLExtensions::UnmapBuffer)>(load("glUnmapBuffer"));
+    if (!GLExtensions::UnmapBuffer)
+        GLExtensions::UnmapBuffer = reinterpret_cast<decltype(GLExtensions::UnmapBuffer)>(load("glUnmapBufferARB"));
+    if (!GLExtensions::UnmapBuffer)
+        GLExtensions::UnmapBuffer = reinterpret_cast<decltype(GLExtensions::UnmapBuffer)>(load("glUnmapBufferEXT"));
 
     GLExtensions::GenFramebuffers = reinterpret_cast<decltype(GLExtensions::GenFramebuffers)>(load("glGenFramebuffers"));
     if (!GLExtensions::GenFramebuffers)

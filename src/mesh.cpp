@@ -451,10 +451,16 @@ Mesh::update_single_vbo(const std::vector<std::pair<size_t, size_t> >& ranges,
 
     glBindBuffer(GL_ARRAY_BUFFER, vbos_[n]);
 
-    if (vbo_update_method_ == VBOUpdateMethodMap) {
+    VBOUpdateMethod method(vbo_update_method_);
+    if (method == VBOUpdateMethodMap) {
         dest_start = reinterpret_cast<float *>(
                 GLExtensions::MapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY)
                 );
+        /* Mapping can legitimately fail on some drivers (observed on
+         * macOS 10.6 legacy GL contexts); fall back to subdata updates
+         * rather than writing through a NULL pointer. */
+        if (!dest_start)
+            method = VBOUpdateMethodSubData;
     }
 
     /* Update supplied ranges */
@@ -465,17 +471,17 @@ Mesh::update_single_vbo(const std::vector<std::pair<size_t, size_t> >& ranges,
         float *src(src_start + nfloats * iter->first);
         float *src_end(src_start + nfloats * (iter->second + 1));
 
-        if (vbo_update_method_ == VBOUpdateMethodMap) {
+        if (method == VBOUpdateMethodMap) {
             float *dest(dest_start + nfloats * iter->first);
             std::copy(src, src_end, dest);
         }
-        else if (vbo_update_method_ == VBOUpdateMethodSubData) {
+        else if (method == VBOUpdateMethodSubData) {
             glBufferSubData(GL_ARRAY_BUFFER, nfloats * iter->first * sizeof(float),
                             (src_end - src) * sizeof(float), src);
         }
     }
 
-    if (vbo_update_method_ == VBOUpdateMethodMap)
+    if (method == VBOUpdateMethodMap && dest_start)
         GLExtensions::UnmapBuffer(GL_ARRAY_BUFFER);
 }
 
