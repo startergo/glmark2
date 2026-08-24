@@ -452,6 +452,14 @@ Mesh::update_single_vbo(const std::vector<std::pair<size_t, size_t> >& ranges,
     glBindBuffer(GL_ARRAY_BUFFER, vbos_[n]);
 
     VBOUpdateMethod method(vbo_update_method_);
+    if (method == VBOUpdateMethodMap &&
+        (!GLExtensions::MapBuffer || !GLExtensions::UnmapBuffer))
+    {
+        /* No usable map entry points on this stack (e.g. glMapBuffer
+         * disabled because its mappings do not alias buffer storage);
+         * update via glBufferSubData instead. */
+        method = VBOUpdateMethodSubData;
+    }
     if (method == VBOUpdateMethodMap) {
         dest_start = reinterpret_cast<float *>(
                 GLExtensions::MapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY)

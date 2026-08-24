@@ -70,6 +70,23 @@ bool GLStateMacOS::init_gl_extensions()
     // On macOS core profile the non-EXT symbols may be available even when
     // the EXT aliases aren't, so resolve both. Legacy drivers (e.g. 10.6
     // GL 2.1) may only implement buffer mapping via the ARB/EXT entry points.
+#if __MAC_OS_X_VERSION_MAX_ALLOWED < 1070
+    /* The 10.6 software-GL stack (GLEngine over a gld float whose buffer
+     * entry points are success-returning stubs over engine-owned storage)
+     * hands out mappings that do not alias the buffer storage: writes land
+     * on engine heap and surface as delayed crashes when the per-context
+     * state is walked at destroy (gleFreeTextureState / gleFreePixelMap /
+     * gleDestroyEnableHashTable). Never offer mapping on this stack; the
+     * buffer scene reports the map variants Unsupported and Mesh falls back
+     * to glBufferSubData. */
+    GLExtensions::MapBuffer = 0;
+    GLExtensions::UnmapBuffer = 0;
+    static bool warned_no_map = false;
+    if (!warned_no_map) {
+        Log::warning("glMapBuffer disabled on this stack; VBO updates use glBufferSubData\n");
+        warned_no_map = true;
+    }
+#else
     GLExtensions::MapBuffer = reinterpret_cast<decltype(GLExtensions::MapBuffer)>(load("glMapBuffer"));
     if (!GLExtensions::MapBuffer)
         GLExtensions::MapBuffer = reinterpret_cast<decltype(GLExtensions::MapBuffer)>(load("glMapBufferARB"));
@@ -81,6 +98,7 @@ bool GLStateMacOS::init_gl_extensions()
         GLExtensions::UnmapBuffer = reinterpret_cast<decltype(GLExtensions::UnmapBuffer)>(load("glUnmapBufferARB"));
     if (!GLExtensions::UnmapBuffer)
         GLExtensions::UnmapBuffer = reinterpret_cast<decltype(GLExtensions::UnmapBuffer)>(load("glUnmapBufferEXT"));
+#endif
 
     GLExtensions::GenFramebuffers = reinterpret_cast<decltype(GLExtensions::GenFramebuffers)>(load("glGenFramebuffers"));
     if (!GLExtensions::GenFramebuffers)
