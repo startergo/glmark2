@@ -170,14 +170,34 @@ bool GLStateMacOS::valid()
 bool GLStateMacOS::reset()
 {
     NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-    if (impl_ && impl_->vao != 0) {
-        using PFNGLDELETEVERTEXARRAYSPROC = void (*)(GLsizei, const GLuint*);
-        auto del_vaos = reinterpret_cast<PFNGLDELETEVERTEXARRAYSPROC>(load_proc(this, "glDeleteVertexArrays"));
-        if (del_vaos)
-            del_vaos(1, &impl_->vao);
-        impl_->vao = 0;
-    }
     if (impl_ && impl_->context) {
+        /* Make the context current so the GL cleanup below is issued to it
+         * (reset() may also run from the destructor with no context bound). */
+        [impl_->context makeCurrentContext];
+
+        if (impl_->vao != 0) {
+            using PFNGLDELETEVERTEXARRAYSPROC = void (*)(GLsizei, const GLuint*);
+            auto del_vaos = reinterpret_cast<PFNGLDELETEVERTEXARRAYSPROC>(load_proc(this, "glDeleteVertexArrays"));
+            if (del_vaos)
+                del_vaos(1, &impl_->vao);
+            impl_->vao = 0;
+        }
+
+        /* Drain in-flight commands before destroying the context. The
+         * benchmark loop swaps with swap interval 0, so batches touching
+         * texture state may still be pending; destroying the context then
+         * crashes 10.6-era GLEngine in gleFreeTextureState during
+         * gliDestroyContext (observed on the Snow Leopard build). */
+        using PFNGLFINISHPROC = void (*)(void);
+        auto finish = reinterpret_cast<PFNGLFINISHPROC>(load_proc(this, "glFinish"));
+        if (finish)
+            finish();
+
+        /* Detach the drawable before releasing the context. Destroying a
+         * context that is still attached to a view is unsupported and makes
+         * GLEngine free surface-associated texture state at destroy time,
+         * which is the state corrupted in the gleFreeTextureState crash. */
+        [impl_->context clearDrawable];
         [NSOpenGLContext clearCurrentContext];
         [impl_->context release];
         impl_->context = nil;
