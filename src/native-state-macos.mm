@@ -188,6 +188,13 @@ bool NativeStateMacOS::create_window(WindowProperties const& properties)
     [impl_->window setTitle:[NSString stringWithFormat:@"glmark2 %s", GLMARK_VERSION]];
     [impl_->window setDelegate:impl_->delegate];
 
+    /* The window is owned through a raw pointer and released by nobody;
+     * stop AppKit from releasing it when the user closes the window
+     * (releasedWhenClosed defaults to YES for titled windows), which
+     * would leave impl_->window dangling and crash the destructor's
+     * orderOut: after a force-close quit. */
+    [impl_->window setReleasedWhenClosed:NO];
+
     // Content view used as the GL drawable
     impl_->view = [[NSView alloc] initWithFrame:[[impl_->window contentView] bounds]];
     [impl_->view setAutoresizingMask:(NSViewWidthSizable | NSViewHeightSizable)];
