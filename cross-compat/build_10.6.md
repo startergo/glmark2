@@ -61,9 +61,10 @@ instead:
     # -> dist/glmark2-<commit>-macos-10.6-x86_64.zip (binary + data/ + README)
 
 Users unzip anywhere and run `./glmark2-macos` from the bundle root with
-no flags. The README bundled inside documents the stack safeguards
-(forced `--reuse-context`, disabled `glMapBuffer`, skipped exit
-teardown) and their console notices.
+no flags. The README bundled inside documents the runtime stack
+safeguards (forced `--reuse-context`, disabled `glMapBuffer`, skipped
+exit teardown) — engaged only when the active renderer identifies as
+software, so hardware renderers get full stock behavior.
 
 ## Runtime notes
 

@@ -47,6 +47,10 @@ typedef NSUInteger NSWindowStyleMask;
 
 static void pump_events(bool* should_quit)
 {
+    /* The event pump runs outside any pool otherwise; each polled event
+     * and the objects its handling autoreleases would leak with an
+     * __NSAutoreleaseNoPool complaint on every frame. */
+    NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
     while (true) {
         NSEvent* event = [NSApp nextEventMatchingMask:NSEventMaskAny
                                             untilDate:[NSDate distantPast]
@@ -64,6 +68,7 @@ static void pump_events(bool* should_quit)
 
         [NSApp sendEvent:event];
     }
+    [pool drain];
 }
 
 struct NativeStateMacOS::Impl

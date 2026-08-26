@@ -3,6 +3,7 @@
 #include "options.h"
 
 #include <dlfcn.h>
+#include <string.h>
 
 #import <Cocoa/Cocoa.h>
 
@@ -16,22 +17,12 @@
 #define __MAC_OS_X_VERSION_MAX_ALLOWED 1060
 #endif
 
-/* True when building against the 10.6 SDK (the Snow Leopard cross-build
- * target). On that stack the gld float's buffer and surface entry points
- * are success-returning stubs over engine-owned state, which makes both
- * glMapBuffer writes and context teardown unsafe; the guards below keep
- * the benchmark stable there without affecting modern-SDK builds. */
-#if __MAC_OS_X_VERSION_MAX_ALLOWED < 1070
-#define GLMARK2_106_FLOAT_STACK 1
-#else
-#define GLMARK2_106_FLOAT_STACK 0
-#endif
-
 struct GLStateMacOS::Impl
 {
     NSOpenGLPixelFormat* pixel_format = nil;
     NSOpenGLContext* context = nil;
     bool core_profile_requested = false;
+    bool software_stack = false;
     GLuint vao = 0;
 };
 
@@ -62,21 +53,6 @@ bool GLStateMacOS::init_display(void* native_display, GLVisualConfig& config_pre
         Log::warning("Could not open OpenGL.framework for symbol loading; falling back to RTLD_DEFAULT\n");
     }
 
-#if GLMARK2_106_FLOAT_STACK
-    /* Destroying a GL context is unsafe on this stack: the teardown path
-     * frees GLEngine/GFXShared-owned allocations that are still live,
-     * surfacing as abort() in free() from gfxFreeTextureLevel/
-     * gleFreeTextureObject or as SIGBUS in gleVPEnable when the next
-     * context touches the recycled page (same allocation cluster in both
-     * crash reports). Keep a single context for the whole run, like
-     * --reuse-context, so no mid-run destroy ever happens. */
-    if (!Options::reuse_context) {
-        Log::warning("Forcing --reuse-context: per-scene context destroy"
-                     " is unsafe on this stack\n");
-        Options::reuse_context = true;
-    }
-#endif
-
     return true;
 }
 
@@ -96,35 +72,36 @@ bool GLStateMacOS::init_gl_extensions()
     // On macOS core profile the non-EXT symbols may be available even when
     // the EXT aliases aren't, so resolve both. Legacy drivers (e.g. 10.6
     // GL 2.1) may only implement buffer mapping via the ARB/EXT entry points.
-#if GLMARK2_106_FLOAT_STACK
-    /* The 10.6 software-GL stack (GLEngine over a gld float whose buffer
-     * entry points are success-returning stubs over engine-owned storage)
-     * hands out mappings that do not alias the buffer storage: writes land
-     * on engine heap and surface as delayed crashes when the per-context
-     * state is walked at destroy (gleFreeTextureState / gleFreePixelMap /
-     * gleDestroyEnableHashTable). Never offer mapping on this stack; the
-     * buffer scene reports the map variants Unsupported and Mesh falls back
-     * to glBufferSubData. */
-    GLExtensions::MapBuffer = 0;
-    GLExtensions::UnmapBuffer = 0;
-    static bool warned_no_map = false;
-    if (!warned_no_map) {
-        Log::warning("glMapBuffer disabled on this stack; VBO updates use glBufferSubData\n");
-        warned_no_map = true;
+    if (impl_->software_stack) {
+        /* Software GL stacks (the VMQemuVGA/GLVM float, Apple's own
+         * GLRendererFloat) hand out mappings that do not alias the buffer
+         * storage: writes land on engine heap and surface as delayed
+         * crashes when the per-context state is walked at destroy
+         * (gleFreeTextureState / gleFreePixelMap / gleDestroyEnableHashTable).
+         * Never offer mapping there; the buffer scene reports the map
+         * variants Unsupported and Mesh falls back to glBufferSubData. */
+        GLExtensions::MapBuffer = 0;
+        GLExtensions::UnmapBuffer = 0;
+        static bool warned_no_map = false;
+        if (!warned_no_map) {
+            Log::warning("glMapBuffer disabled on this software GL stack;"
+                         " VBO updates use glBufferSubData\n");
+            warned_no_map = true;
+        }
     }
-#else
-    GLExtensions::MapBuffer = reinterpret_cast<decltype(GLExtensions::MapBuffer)>(load("glMapBuffer"));
-    if (!GLExtensions::MapBuffer)
-        GLExtensions::MapBuffer = reinterpret_cast<decltype(GLExtensions::MapBuffer)>(load("glMapBufferARB"));
-    if (!GLExtensions::MapBuffer)
-        GLExtensions::MapBuffer = reinterpret_cast<decltype(GLExtensions::MapBuffer)>(load("glMapBufferEXT"));
+    else {
+        GLExtensions::MapBuffer = reinterpret_cast<decltype(GLExtensions::MapBuffer)>(load("glMapBuffer"));
+        if (!GLExtensions::MapBuffer)
+            GLExtensions::MapBuffer = reinterpret_cast<decltype(GLExtensions::MapBuffer)>(load("glMapBufferARB"));
+        if (!GLExtensions::MapBuffer)
+            GLExtensions::MapBuffer = reinterpret_cast<decltype(GLExtensions::MapBuffer)>(load("glMapBufferEXT"));
 
-    GLExtensions::UnmapBuffer = reinterpret_cast<decltype(GLExtensions::UnmapBuffer)>(load("glUnmapBuffer"));
-    if (!GLExtensions::UnmapBuffer)
-        GLExtensions::UnmapBuffer = reinterpret_cast<decltype(GLExtensions::UnmapBuffer)>(load("glUnmapBufferARB"));
-    if (!GLExtensions::UnmapBuffer)
-        GLExtensions::UnmapBuffer = reinterpret_cast<decltype(GLExtensions::UnmapBuffer)>(load("glUnmapBufferEXT"));
-#endif
+        GLExtensions::UnmapBuffer = reinterpret_cast<decltype(GLExtensions::UnmapBuffer)>(load("glUnmapBuffer"));
+        if (!GLExtensions::UnmapBuffer)
+            GLExtensions::UnmapBuffer = reinterpret_cast<decltype(GLExtensions::UnmapBuffer)>(load("glUnmapBufferARB"));
+        if (!GLExtensions::UnmapBuffer)
+            GLExtensions::UnmapBuffer = reinterpret_cast<decltype(GLExtensions::UnmapBuffer)>(load("glUnmapBufferEXT"));
+    }
 
     GLExtensions::GenFramebuffers = reinterpret_cast<decltype(GLExtensions::GenFramebuffers)>(load("glGenFramebuffers"));
     if (!GLExtensions::GenFramebuffers)
@@ -173,6 +150,22 @@ bool GLStateMacOS::init_gl_extensions()
     return true;
 }
 
+/* Software GL stacks (the VMQemuVGA/GLVM "float", Apple's own
+ * GLRendererFloat) have stubbed gld buffer and surface entry points, which
+ * makes glMapBuffer writes and context teardown unsafe. They identify
+ * themselves as software renderers through the GL strings; hardware
+ * renderers (NVIDIA/AMD/Intel/virgl) never do. Note that
+ * GLRendererFloat.bundle is loaded on every system, so image presence is
+ * not a signal -- only the active renderer's strings are.
+ * (Verified: "NVIDIA GeForce 9400 OpenGL Engine" on hardware vs
+ * "VirtIO GPU stub (software, no rendering)" / "2.1 VMQemuVGA (engine
+ * software)" on the float stack.) */
+static bool software_gl_stack(const char* renderer, const char* version)
+{
+    return (renderer && strcasestr(renderer, "software")) ||
+           (version && strcasestr(version, "software"));
+}
+
 bool GLStateMacOS::valid()
 {
     if (!ensure_context())
@@ -185,6 +178,21 @@ bool GLStateMacOS::valid()
         Log::error("Failed to load GL entry points\n");
         [pool drain];
         return false;
+    }
+
+    impl_->software_stack = software_gl_stack(
+            reinterpret_cast<const char*>(glGetString(GL_RENDERER)),
+            reinterpret_cast<const char*>(glGetString(GL_VERSION)));
+
+    if (impl_->software_stack && !Options::reuse_context) {
+        /* Destroying a GL context on a software stack frees engine-owned
+         * allocations that are still live (abort in free() from
+         * gfxFreeTextureLevel/gleFreeTextureObject, SIGBUS in gleVPEnable
+         * at the next context's first program bind). Keep a single
+         * context for the whole run, like --reuse-context. */
+        Log::warning("Forcing --reuse-context: per-scene context destroy"
+                     " is unsafe on this software GL stack\n");
+        Options::reuse_context = true;
     }
 
     // Core profile requires a VAO bound for vertex attribute arrays.
@@ -213,18 +221,18 @@ bool GLStateMacOS::valid()
 
 bool GLStateMacOS::reset()
 {
-#if GLMARK2_106_FLOAT_STACK
-    /* Context teardown aborts or crashes on this stack (see
-     * init_display). With reuse forced, reset() only ever runs with a
-     * live context from the destructor, so deliberately leak the
-     * context and pixel format instead of destroying them; process exit
-     * reclaims everything and the run ends with a clean exit status. */
-    if (impl_ && (impl_->context || impl_->pixel_format)) {
-        Log::warning("Skipping GL context teardown on this stack"
-                     " (leaked by design; process exit reclaims it)\n");
+    if (impl_ && impl_->software_stack) {
+        /* Context teardown aborts or crashes on software GL stacks (see
+         * valid()). With reuse forced, reset() only ever runs with a live
+         * context from the destructor, so deliberately leak the context
+         * and pixel format instead of destroying them; process exit
+         * reclaims everything and the run ends with a clean exit status. */
+        if (impl_->context || impl_->pixel_format) {
+            Log::warning("Skipping GL context teardown on this software GL"
+                         " stack (leaked by design; process exit reclaims it)\n");
+        }
+        return true;
     }
-    return true;
-#else
     NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
     if (impl_ && impl_->context) {
         /* Make the context current so the GL cleanup below is issued to it
@@ -265,7 +273,6 @@ bool GLStateMacOS::reset()
     [pool drain];
 
     return true;
-#endif
 }
 
 void GLStateMacOS::swap()

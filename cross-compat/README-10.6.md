@@ -19,21 +19,25 @@ Useful invocations:
     ./glmark2-macos --list-scenes
     ./glmark2-macos --help
 
-## Expected console notices on this stack
+## Expected console notices on software renderers
 
-These are deliberate safeguards for the 10.6 software-GL stack
-(GLEngine over a gld float whose buffer/surface entry points are
-success-returning stubs), not errors:
+The stack safeguards are applied at runtime, keyed on the active
+renderer: if `GL_RENDERER`/`GL_VERSION` identify a software renderer
+(e.g. `VirtIO GPU stub (software, no rendering)`), three notices are
+printed and are deliberate, not errors:
 
 - `Forcing --reuse-context` — per-scene GL context destroy frees
   engine-owned state that is still live; one context is kept for the
   whole run instead.
-- `glMapBuffer disabled on this stack` — VBO updates use
+- `glMapBuffer disabled on this software GL stack` — VBO updates use
   glBufferSubData; the `buffer:update-method=map` benchmark variants
   report Unsupported.
 - `Skipping GL context teardown` — printed at exit; the context is
   leaked by design so the process ends with exit status 0 instead of
   aborting after the score is printed.
+
+On hardware renderers (NVIDIA/AMD/Intel/virgl) none of these engage:
+full stock behavior, per-scene contexts, and the map variants run.
 
 ## Requirements
 
